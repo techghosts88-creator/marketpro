@@ -54,6 +54,7 @@ DIRECT_URL=...         # depuis l'étape précédente
 JWT_SECRET=...         # une longue chaîne aléatoire, ex: openssl rand -base64 32
 CORS_ORIGIN=http://localhost:5173
 PORT=4000
+ANTHROPIC_API_KEY=...  # optionnel — active la vraie compréhension IA des commandes vocales (console.anthropic.com)
 ```
 
 Créez les tables puis démarrez le serveur :
@@ -100,6 +101,7 @@ En mode backend réel, créez vos propres comptes depuis l'écran « Créer un c
 
 - **Logo officiel** sur les écrans de connexion / création de compte.
 - **Reconnaissance vocale réelle** (Web Speech API) : le bouton micro écoute et transcrit en direct ; les réponses de MarketPro sont aussi lues à voix haute. Bascule automatique vers la saisie clavier sur les navigateurs non compatibles (ex. Firefox).
+- **Compréhension par IA réelle (Claude)** : une fois transcrit, le texte est interprété par l'API Anthropic (`server/src/routes/voice.js`) plutôt que par de simples motifs figés — le commerçant peut donc formuler sa phrase librement ("j'ai fait une vente de...", "on m'a acheté...", etc.) sans suivre un script exact. Si `ANTHROPIC_API_KEY` n'est pas configurée côté backend (ou en mode démo local sans backend), l'app bascule automatiquement sur une reconnaissance de motifs plus basique, moins flexible mais fonctionnelle.
 - **Fonctionne hors-ligne** : les données sont mises en cache localement et les écritures faites hors connexion sont mises en file d'attente puis synchronisées automatiquement au retour du réseau (voir `src/lib/offlineSync.js`).
 - **PWA installable** : `manifest.json` + `sw.js` mettent en cache l'interface.
 - **Backend réel optionnel** : comptes sécurisés (mot de passe haché, session par JWT), données Postgres scopées par utilisateur, messagerie entre commerçants et fournisseurs (rafraîchie automatiquement), annuaire des commerçants pour les fournisseurs.

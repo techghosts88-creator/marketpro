@@ -6,6 +6,7 @@ import { authRouter } from "./routes/auth.js";
 import { profilesRouter } from "./routes/profiles.js";
 import { messagesRouter } from "./routes/messages.js";
 import { billingRouter } from "./routes/billing.js";
+import { voiceRouter } from "./routes/voice.js";
 import { createResourceRouter } from "./routes/resource.js";
 
 const app = express();
@@ -39,6 +40,7 @@ app.use("/api/auth", authRouter);
 app.use("/api/profiles", profilesRouter);
 app.use("/api/messages", messagesRouter);
 app.use("/api/billing", billingRouter);
+app.use("/api/voice", voiceRouter);
 app.use("/api/products", createResourceRouter("product"));
 app.use("/api/clients", createResourceRouter("client"));
 app.use("/api/suppliers", createResourceRouter("supplier"));

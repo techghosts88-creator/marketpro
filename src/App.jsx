@@ -207,7 +207,7 @@ const TRANSLATIONS = {
       betaNote: "Le wolof, le bambara et le dioula sont en cours de traduction — certains textes restent en français en attendant.",
       account: "Compte", loggedInAs: "Connecté en tant que",
     },
-    voice: { listening: "MarketPro écoute", sayOrType: "Dites ou tapez votre commande", understood: "Voici ce que j'ai compris", placeholder: "Ex : J'ai vendu 2 sacs de riz à 50000 francs", examplesTitle: "Vous pouvez dire par exemple :", newCommand: "Nouvelle commande", finish: "Terminer", send: "Envoyer", tapToSpeak: "Appuyez sur le micro pour parler", speakNow: "Parlez maintenant...", notSupported: "La reconnaissance vocale n'est pas prise en charge par ce navigateur. Utilisez Chrome ou tapez votre commande ci-dessous.", micDenied: "Accès au microphone refusé. Vérifiez les autorisations de votre navigateur.", useText: "Utiliser le clavier" },
+    voice: { listening: "MarketPro écoute", sayOrType: "Dites ou tapez votre commande", understood: "Voici ce que j'ai compris", placeholder: "Ex : J'ai vendu 2 sacs de riz à 50000 francs", examplesTitle: "Vous pouvez dire par exemple :", newCommand: "Nouvelle commande", finish: "Terminer", send: "Envoyer", tapToSpeak: "Appuyez sur le micro pour parler", speakNow: "Parlez maintenant...", notSupported: "La reconnaissance vocale n'est pas prise en charge par ce navigateur. Utilisez Chrome ou tapez votre commande ci-dessous.", micDenied: "Accès au microphone refusé. Vérifiez les autorisations de votre navigateur.", useText: "Utiliser le clavier", thinking: "MarketPro réfléchit..." },
     toasts: { saleSaved: "Vente enregistrée ✓", purchaseSaved: "Achat enregistré ✓", expenseSaved: "Dépense enregistrée ✓", productAdded: "Produit ajouté ✓", clientAdded: "Client ajouté ✓", supplierAdded: "Fournisseur ajouté ✓" },
     paymentMethods: { especes: "Espèces", wave: "Wave", orange: "Orange Money", mtn: "MTN Money", moov: "Moov Money" },
     billing: {
@@ -314,7 +314,7 @@ const TRANSLATIONS = {
       betaNote: "Wolof, Bambara and Dioula are still being translated — some text will remain in French for now.",
       account: "Account", loggedInAs: "Logged in as",
     },
-    voice: { listening: "MarketPro is listening", sayOrType: "Say or type your command", understood: "Here's what I understood", placeholder: "E.g.: I sold 2 bags of rice for 50000 francs", examplesTitle: "You can say for example:", newCommand: "New command", finish: "Finish", send: "Send", tapToSpeak: "Tap the mic to speak", speakNow: "Speak now...", notSupported: "Speech recognition isn't supported by this browser. Use Chrome or type your command below.", micDenied: "Microphone access denied. Check your browser permissions.", useText: "Use keyboard instead" },
+    voice: { listening: "MarketPro is listening", sayOrType: "Say or type your command", understood: "Here's what I understood", placeholder: "E.g.: I sold 2 bags of rice for 50000 francs", examplesTitle: "You can say for example:", newCommand: "New command", finish: "Finish", send: "Send", tapToSpeak: "Tap the mic to speak", speakNow: "Speak now...", notSupported: "Speech recognition isn't supported by this browser. Use Chrome or type your command below.", micDenied: "Microphone access denied. Check your browser permissions.", useText: "Use keyboard instead", thinking: "MarketPro is thinking..." },
     toasts: { saleSaved: "Sale recorded ✓", purchaseSaved: "Purchase recorded ✓", expenseSaved: "Expense recorded ✓", productAdded: "Product added ✓", clientAdded: "Client added ✓", supplierAdded: "Supplier added ✓" },
     paymentMethods: { especes: "Cash", wave: "Wave", orange: "Orange Money", mtn: "MTN Money", moov: "Moov Money" },
     billing: {
@@ -1025,12 +1025,13 @@ function VoiceOverlay({ open, onClose, onCommand }) {
   const { t, lang } = useLang();
   const [text, setText] = useState("");
   const [reply, setReply] = useState(null);
+  const [thinking, setThinking] = useState(false);
   const inputRef = useRef(null);
   const speech = useSpeechRecognition(lang);
 
   useEffect(() => {
     if (open) {
-      setText(""); setReply(null);
+      setText(""); setReply(null); setThinking(false);
       if (!speech.supported) setTimeout(() => inputRef.current?.focus(), 150);
     } else {
       speech.stop();
@@ -1041,10 +1042,12 @@ function VoiceOverlay({ open, onClose, onCommand }) {
 
   if (!open) return null;
 
-  const submit = (value) => {
+  const submit = async (value) => {
     if (!value.trim()) return;
     speech.stop();
-    const result = onCommand(value);
+    setThinking(true);
+    const result = await onCommand(value);
+    setThinking(false);
     setReply(result.reply);
     speak(result.reply, lang);
   };
@@ -1071,7 +1074,7 @@ function VoiceOverlay({ open, onClose, onCommand }) {
           <div>
             <div className="font-semibold text-sm">{t("voice.listening")}</div>
             <div className="text-xs text-slate-400">
-              {speech.isListening ? t("voice.speakNow") : reply ? t("voice.understood") : showMicUI ? t("voice.tapToSpeak") : t("voice.sayOrType")}
+              {thinking ? t("voice.thinking") : speech.isListening ? t("voice.speakNow") : reply ? t("voice.understood") : showMicUI ? t("voice.tapToSpeak") : t("voice.sayOrType")}
             </div>
           </div>
         </div>
@@ -1088,11 +1091,12 @@ function VoiceOverlay({ open, onClose, onCommand }) {
           <div className="flex flex-col items-center mb-5">
             <button
               onClick={toggleMic}
+              disabled={thinking}
               aria-label={speech.isListening ? t("voice.finish") : t("voice.tapToSpeak")}
-              className={`relative flex items-center justify-center h-20 w-20 rounded-full transition-all ${speech.isListening ? "bg-rose-600 shadow-lg shadow-rose-600/40" : "bg-emerald-600 shadow-lg shadow-emerald-600/40 hover:scale-105"}`}
+              className={`relative flex items-center justify-center h-20 w-20 rounded-full transition-all disabled:opacity-50 ${speech.isListening ? "bg-rose-600 shadow-lg shadow-rose-600/40" : "bg-emerald-600 shadow-lg shadow-emerald-600/40 hover:scale-105"}`}
             >
               {speech.isListening && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-500 opacity-30" />}
-              {speech.isListening ? <MicOff size={28} className="text-white relative" /> : <Mic size={28} className="text-white relative" />}
+              {thinking ? <div className="h-6 w-6 rounded-full border-2 border-white border-t-transparent animate-spin" /> : speech.isListening ? <MicOff size={28} className="text-white relative" /> : <Mic size={28} className="text-white relative" />}
             </button>
             {displayedText && <p className="mt-4 text-center text-sm text-slate-200 max-w-xs">{displayedText}</p>}
           </div>
@@ -1100,11 +1104,11 @@ function VoiceOverlay({ open, onClose, onCommand }) {
 
         <div onKeyDown={(e) => { if (e.key === "Enter") submit(text); }} className="flex items-center gap-2 rounded-xl bg-white/5 border border-white/10 px-4 py-3 mb-4">
           <Volume2 size={16} className="text-slate-500 flex-shrink-0" />
-          <input ref={inputRef} value={text} onChange={(e) => setText(e.target.value)} placeholder={t("voice.placeholder")} className="bg-transparent flex-1 outline-none text-sm placeholder:text-slate-500" />
+          <input ref={inputRef} value={text} onChange={(e) => setText(e.target.value)} disabled={thinking} placeholder={t("voice.placeholder")} className="bg-transparent flex-1 outline-none text-sm placeholder:text-slate-500 disabled:opacity-50" />
         </div>
 
         {reply && <div className="rounded-2xl rounded-tl-md border border-lime-400/25 px-5 py-4 text-sm text-emerald-50 mb-4" style={{ background: "linear-gradient(135deg, rgba(16,185,129,0.18), rgba(3,105,161,0.16))" }}>{reply}</div>}
-        {!reply && (
+        {!reply && !thinking && (
           <div className="mb-4">
             <div className="text-xs text-slate-500 mb-2.5">{t("voice.examplesTitle")}</div>
             <div className="flex flex-wrap gap-2">{VOICE_EXAMPLES_FR.map((ex) => <button key={ex} onClick={() => { setText(ex); submit(ex); }} className="text-xs rounded-full border border-white/15 px-3 py-1.5 text-slate-300 hover:border-lime-400/50 hover:text-white transition-colors">{ex}</button>)}</div>
@@ -1117,7 +1121,7 @@ function VoiceOverlay({ open, onClose, onCommand }) {
               <button onClick={onClose} className="flex-1 rounded-full bg-emerald-600 py-2.5 text-sm font-semibold hover:bg-emerald-500">{t("voice.finish")}</button>
             </>
           ) : (
-            <button onClick={() => submit(text)} className="flex-1 rounded-full bg-emerald-600 py-2.5 text-sm font-semibold hover:bg-emerald-500">{t("voice.send")}</button>
+            <button onClick={() => submit(text)} disabled={thinking} className="flex-1 rounded-full bg-emerald-600 py-2.5 text-sm font-semibold hover:bg-emerald-500 disabled:opacity-50">{thinking ? t("voice.thinking") : t("voice.send")}</button>
           )}
         </div>
       </div>
@@ -1721,9 +1725,20 @@ function Workspace({ user, onLogout, onPay, accounts, messages, sendMessage }) {
     pushToast(t("credits.allSent", ids.length));
   };
 
-  const handleVoiceCommand = (rawText) => {
+  const handleVoiceCommand = async (rawText) => {
     const ctx = { products, profitToday, revenueToday, debts: openDebts, t };
-    const result = parseVoiceCommand(rawText, ctx);
+    let result;
+    if (isRemoteConfigured) {
+      try {
+        result = await api.parseVoice(rawText, { productNames: products.map((p) => p.name), revenueToday, profitToday });
+      } catch (e) {
+        // AI unavailable (not configured server-side, network error, etc.) —
+        // fall back to local pattern matching rather than failing silently.
+        result = parseVoiceCommand(rawText, ctx);
+      }
+    } else {
+      result = parseVoiceCommand(rawText, ctx);
+    }
     if (result.type === "sale") applySale(result.payload);
     if (result.type === "purchase") applyPurchase(result.payload);
     if (result.type === "expense") applyExpense(result.payload);

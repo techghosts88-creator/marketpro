@@ -60,4 +60,6 @@ export const api = {
 
   billingStatus: () => request("/api/billing/status"),
   pay: (method) => request("/api/billing/pay", { method: "POST", body: { method } }),
+
+  parseVoice: (text, context) => request("/api/voice/parse", { method: "POST", body: { text, ...context } }),
 };
