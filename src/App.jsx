@@ -6,6 +6,7 @@ import {
   MoreHorizontal, Sparkles, Globe2, Volume2, CreditCard, LogOut,
   Lock, User, UserPlus, Eye, EyeOff, Clock, MessageCircle, Store,
   MapPin, Send, Coins, ArrowLeft, WifiOff, MicOff, Crown, Upload, Download,
+  ShieldCheck, LineChart, ClipboardCheck,
 } from "lucide-react";
 import logoUrl from "./assets/logo.png";
 import { api, isRemoteConfigured, getToken, setToken } from "./lib/apiClient";
@@ -81,6 +82,12 @@ function formatDate(dateStr) {
   return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
 }
 
+function shortDateLabel(daysAgo, lang) {
+  const d = new Date();
+  d.setDate(d.getDate() - daysAgo);
+  return d.toLocaleDateString(lang === "en" ? "en-US" : "fr-FR", { day: "numeric", month: "short" });
+}
+
 /* =========================================================================
    OFFLINE PERSISTENCE — data survives reloads and lost connectivity.
    Each merchant/supplier's data is namespaced by username in localStorage.
@@ -147,9 +154,18 @@ const TRANSLATIONS = {
       errorUsernameTaken: "Cet identifiant est déjà utilisé.",
       demoHint: "Comptes de démo : awa / 1234 (commerçant), moussa / 1234 (commerçant), sahel / 1234 (fournisseur)",
       welcomeBack: "Chaque utilisateur a son propre espace, protégé par un identifiant et un mot de passe.",
+      featureManage: "Gérer", featureManageDesc: "Votre commerce",
+      featureDecide: "Décider", featureDecideDesc: "Avec IA",
+      featureGrow: "Grandir", featureGrowDesc: "Sans limite",
+      welcomeBackTitle: "Bienvenue de retour !", welcomeBackDesc: "Connectez-vous à votre espace MarketPro",
+      createAccountTitle: "Créez votre espace", createAccountDesc: "Rejoignez MarketPro en quelques secondes",
+      rememberMe: "Se souvenir de moi", forgotPassword: "Mot de passe oublié ?",
+      forgotNotAvailable: "La récupération de mot de passe par e-mail n'est pas encore disponible. Contactez le support de votre boutique pour réinitialiser votre accès.",
+      secureTitle: "Sécurisé et confidentiel", secureDesc: "Vos données sont protégées et sécurisées",
     },
     dashboard: {
       greetingWord: "Bonjour", subtitle: "Dites simplement ce qui s'est passé aujourd'hui",
+      headerSubtitle: "Vue d'ensemble de votre activité", performanceOverview: "Aperçu des performances", last7Days: "7 derniers jours",
       revenueToday: "Chiffre d'affaires (jour)", profitToday: "Bénéfice net (jour)", transactionsToday: "Transactions (jour)",
       lowStockCard: "Stock faible", updatedLive: "Mis à jour en direct", marginEstimate: "Estimation à 32% de marge",
       salesPlusPurchases: "Ventes + achats", allGood: "Tout est en ordre",
@@ -162,7 +178,7 @@ const TRANSLATIONS = {
       product: "Produit", quantity: "Quantité", client: "Client", amount: "Montant", payment: "Paiement", when: "Quand", empty: "Aucune vente enregistrée.",
       paymentStatus: "Statut du paiement", statusPaid: "Payé", statusCredit: "Crédit", statusPartial: "Partiel",
       depositLabel: "Montant versé maintenant", remainingLabel: "Reste à payer", dueDateLabel: "Échéance du remboursement",
-      creditBadge: "Crédit", partialBadge: (v) => `Partiel · reste ${v}`,
+      creditBadge: "Crédit", partialBadge: (v) => `Partiel · reste ${v}`, unitPriceHint: (v) => `Prix unitaire : ${v}`,
     },
     stocks: { title: "Stocks", subtitleCount: (n) => `${n} produit(s) référencé(s)`, product: "Produit", category: "Catégorie", stock: "Stock", unitPrice: "Prix unitaire", status: "État",
       importButton: "Importer un stock", exportButton: "Exporter", importTitle: "Importer votre stock existant",
@@ -254,9 +270,18 @@ const TRANSLATIONS = {
       errorUsernameTaken: "This username is already taken.",
       demoHint: "Demo accounts: awa / 1234 (merchant), moussa / 1234 (merchant), sahel / 1234 (supplier)",
       welcomeBack: "Every user gets their own space, protected by a username and password.",
+      featureManage: "Manage", featureManageDesc: "Your business",
+      featureDecide: "Decide", featureDecideDesc: "With AI",
+      featureGrow: "Grow", featureGrowDesc: "Without limits",
+      welcomeBackTitle: "Welcome back!", welcomeBackDesc: "Log in to your MarketPro space",
+      createAccountTitle: "Create your space", createAccountDesc: "Join MarketPro in a few seconds",
+      rememberMe: "Remember me", forgotPassword: "Forgot password?",
+      forgotNotAvailable: "Email password recovery isn't available yet. Contact your shop's support to reset your access.",
+      secureTitle: "Secure and confidential", secureDesc: "Your data is protected and secure",
     },
     dashboard: {
       greetingWord: "Hello", subtitle: "Just say what happened today",
+      headerSubtitle: "Overview of your activity", performanceOverview: "Performance overview", last7Days: "Last 7 days",
       revenueToday: "Revenue (today)", profitToday: "Net profit (today)", transactionsToday: "Transactions (today)",
       lowStockCard: "Low stock", updatedLive: "Updated live", marginEstimate: "Estimated at 32% margin",
       salesPlusPurchases: "Sales + purchases", allGood: "Everything looks good",
@@ -269,7 +294,7 @@ const TRANSLATIONS = {
       product: "Product", quantity: "Quantity", client: "Client", amount: "Amount", payment: "Payment", when: "When", empty: "No sales recorded yet.",
       paymentStatus: "Payment status", statusPaid: "Paid", statusCredit: "Credit", statusPartial: "Partial",
       depositLabel: "Amount paid now", remainingLabel: "Remaining balance", dueDateLabel: "Repayment due date",
-      creditBadge: "Credit", partialBadge: (v) => `Partial · ${v} left`,
+      creditBadge: "Credit", partialBadge: (v) => `Partial · ${v} left`, unitPriceHint: (v) => `Unit price: ${v}`,
     },
     stocks: { title: "Inventory", subtitleCount: (n) => `${n} product(s) listed`, product: "Product", category: "Category", stock: "Stock", unitPrice: "Unit price", status: "Status",
       importButton: "Import stock", exportButton: "Export", importTitle: "Import your existing stock",
@@ -785,7 +810,33 @@ function useSupplierNav() {
    SMALL UI ATOMS
 ========================================================================= */
 
-function StatCard({ label, value, delta, deltaTone = "up", icon: Icon }) {
+function MiniSparkline({ data, color = "#059669" }) {
+  const max = Math.max(...data, 1);
+  const min = Math.min(...data, 0);
+  const range = max - min || 1;
+  const w = 100, h = 32;
+  const points = data.map((v, i) => `${(i / (data.length - 1)) * w},${h - ((v - min) / range) * h}`).join(" ");
+  const areaPoints = `0,${h} ${points} ${w},${h}`;
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className="w-full h-8">
+      <polygon points={areaPoints} fill={color} opacity="0.12" />
+      <polyline points={points} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function MiniBars({ data, color = "#1C5C8C" }) {
+  const max = Math.max(...data, 1);
+  return (
+    <div className="flex items-end gap-1 h-8">
+      {data.map((v, i) => (
+        <div key={i} className="flex-1 rounded-sm" style={{ height: `${Math.max(8, (v / max) * 100)}%`, background: color, opacity: 0.35 + (i / data.length) * 0.65 }} />
+      ))}
+    </div>
+  );
+}
+
+function StatCard({ label, value, delta, deltaTone = "up", icon: Icon, spark }) {
   return (
     <div className="rounded-2xl border border-slate-900/10 bg-white p-5">
       <div className="flex items-center justify-between mb-3">
@@ -794,6 +845,7 @@ function StatCard({ label, value, delta, deltaTone = "up", icon: Icon }) {
       </div>
       <div className="font-mono text-xl sm:text-2xl font-semibold text-slate-900">{value}</div>
       {delta && <div className={`mt-1.5 flex items-center gap-1 text-xs ${deltaTone === "up" ? "text-emerald-700" : "text-amber-600"}`}>{deltaTone === "up" ? <TrendingUp size={13} /> : <AlertTriangle size={13} />} {delta}</div>}
+      {spark && <div className="mt-3">{spark}</div>}
     </div>
   );
 }
@@ -843,6 +895,8 @@ function LoginScreen({ onLogin, onRegister }) {
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [remember, setRemember] = useState(true);
+  const [forgotMsg, setForgotMsg] = useState(false);
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -872,6 +926,12 @@ function LoginScreen({ onLogin, onRegister }) {
     if (result?.error) setError(result.error);
   };
 
+  const FEATURES = [
+    { Icon: Lock, title: t("login.featureManage"), desc: t("login.featureManageDesc"), color: "#0A5EB0" },
+    { Icon: LineChart, title: t("login.featureDecide"), desc: t("login.featureDecideDesc"), color: "#059669" },
+    { Icon: ClipboardCheck, title: t("login.featureGrow"), desc: t("login.featureGrowDesc"), color: "#0A5EB0" },
+  ];
+
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 sm:p-6" style={{ fontFamily: "'Inter', sans-serif" }}>
       <div className="w-full max-w-md">
@@ -881,12 +941,34 @@ function LoginScreen({ onLogin, onRegister }) {
             Market<span className="text-emerald-700">Pro</span>
           </div>
         </div>
-        <p className="text-center text-sm text-slate-500 mb-8">{t("login.tagline")}</p>
+        <p className="text-center text-sm text-slate-500 mb-5">{t("login.tagline")}</p>
+
+        <div className="flex items-center justify-center gap-5 sm:gap-7 mb-7">
+          {FEATURES.map(({ Icon, title, desc, color }) => (
+            <div key={title} className="flex items-center gap-2">
+              <span className="h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${color}1A` }}>
+                <Icon size={15} style={{ color }} />
+              </span>
+              <div className="leading-tight">
+                <div className="text-xs font-bold text-slate-900">{title}</div>
+                <div className="text-[10px] text-slate-500 uppercase tracking-wide">{desc}</div>
+              </div>
+            </div>
+          ))}
+        </div>
 
         <div className="rounded-3xl border border-slate-900/10 bg-white p-6 sm:p-8 shadow-xl shadow-slate-900/5">
-          <div className="flex rounded-xl bg-slate-100 p-1 mb-6">
-            <button onClick={() => { setTab("login"); setError(""); }} className={`flex-1 rounded-lg py-2 text-sm font-semibold transition-colors ${tab === "login" ? "bg-white shadow text-slate-900" : "text-slate-500"}`}>{t("login.loginTab")}</button>
-            <button onClick={() => { setTab("register"); setError(""); }} className={`flex-1 rounded-lg py-2 text-sm font-semibold transition-colors ${tab === "register" ? "bg-white shadow text-slate-900" : "text-slate-500"}`}>{t("login.registerTab")}</button>
+          <div className="flex rounded-full bg-slate-100 p-1 mb-6">
+            <button onClick={() => { setTab("login"); setError(""); }} className={`flex-1 inline-flex items-center justify-center gap-1.5 rounded-full py-2.5 text-sm font-semibold transition-colors ${tab === "login" ? "bg-white shadow text-emerald-700" : "text-slate-500"}`}><User size={15} /> {t("login.loginTab")}</button>
+            <button onClick={() => { setTab("register"); setError(""); }} className={`flex-1 inline-flex items-center justify-center gap-1.5 rounded-full py-2.5 text-sm font-semibold transition-colors ${tab === "register" ? "bg-white shadow text-emerald-700" : "text-slate-500"}`}><UserPlus size={15} /> {t("login.registerTab")}</button>
+          </div>
+
+          <div className="flex items-start gap-3 mb-6">
+            <span className="h-9 w-9 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0"><ShieldCheck size={18} className="text-emerald-600" /></span>
+            <div>
+              <div className="font-semibold text-slate-900 text-sm">{tab === "login" ? t("login.welcomeBackTitle") : t("login.createAccountTitle")}</div>
+              <div className="text-xs text-slate-500 mt-0.5">{tab === "login" ? t("login.welcomeBackDesc") : t("login.createAccountDesc")}</div>
+            </div>
           </div>
 
           {tab === "login" ? (
@@ -904,9 +986,29 @@ function LoginScreen({ onLogin, onRegister }) {
                   <button type="button" onClick={() => setShowPw((s) => !s)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400">{showPw ? <EyeOff size={16} /> : <Eye size={16} />}</button>
                 </div>
               </Field>
-              {error && <p className="text-xs text-rose-600 mb-4">{error}</p>}
-              <button type="button" disabled={loading} onClick={submitLogin} className="w-full rounded-full bg-emerald-600 text-white py-3 text-sm font-semibold hover:bg-emerald-500 disabled:opacity-60">{loading ? "…" : t("login.loginButton")}</button>
+
+              <div className="flex items-center justify-between mb-1 -mt-1">
+                <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer select-none">
+                  <span onClick={() => setRemember((r) => !r)} className={`h-4 w-4 rounded flex items-center justify-center flex-shrink-0 ${remember ? "bg-emerald-600" : "border border-slate-300"}`}>
+                    {remember && <CheckCircle2 size={12} className="text-white" strokeWidth={3} />}
+                  </span>
+                  {t("login.rememberMe")}
+                </label>
+                <button type="button" onClick={() => setForgotMsg((v) => !v)} className="text-xs font-medium text-emerald-700 hover:text-emerald-800">{t("login.forgotPassword")}</button>
+              </div>
+              {forgotMsg && <p className="text-xs text-slate-500 bg-slate-50 rounded-lg px-3 py-2.5 mt-3">{t("login.forgotNotAvailable")}</p>}
+
+              {error && <p className="text-xs text-rose-600 mt-4">{error}</p>}
+              <button type="button" disabled={loading} onClick={submitLogin} className="w-full mt-5 inline-flex items-center justify-center gap-2 rounded-full bg-emerald-600 text-white py-3 text-sm font-semibold hover:bg-emerald-500 disabled:opacity-60"><Lock size={15} /> {loading ? "…" : t("login.loginButton")}</button>
               {!isRemoteConfigured && <p className="text-xs text-slate-400 text-center mt-4">{t("login.demoHint")}</p>}
+
+              <div className="flex items-start gap-3 mt-6 rounded-2xl border border-slate-900/10 bg-slate-50/70 p-4">
+                <ShieldCheck size={18} className="text-emerald-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <div className="text-xs font-semibold text-slate-800">{t("login.secureTitle")}</div>
+                  <div className="text-xs text-slate-500 mt-0.5">{t("login.secureDesc")}</div>
+                </div>
+              </div>
             </div>
           ) : (
             <div onKeyDown={(e) => { if (e.key === "Enter") submitRegister(); }}>
@@ -930,10 +1032,18 @@ function LoginScreen({ onLogin, onRegister }) {
               </div>
               {error && <p className="text-xs text-rose-600 mb-4">{error}</p>}
               <button type="button" disabled={loading} onClick={submitRegister} className="w-full rounded-full bg-gradient-to-br from-emerald-600 to-sky-800 text-white py-3 text-sm font-semibold hover:opacity-90 inline-flex items-center justify-center gap-2 disabled:opacity-60"><UserPlus size={16} /> {loading ? "…" : t("login.registerButton")}</button>
+
+              <div className="flex items-start gap-3 mt-6 rounded-2xl border border-slate-900/10 bg-slate-50/70 p-4">
+                <ShieldCheck size={18} className="text-emerald-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <div className="text-xs font-semibold text-slate-800">{t("login.secureTitle")}</div>
+                  <div className="text-xs text-slate-500 mt-0.5">{t("login.secureDesc")}</div>
+                </div>
+              </div>
             </div>
           )}
         </div>
-        <p className="text-center text-xs text-slate-400 mt-6">{t("login.welcomeBack")}</p>
+        <p className="text-center text-xs text-slate-400 mt-6 flex items-center justify-center gap-1.5"><Lock size={12} /> {t("login.welcomeBack")}</p>
       </div>
     </div>
   );
@@ -1431,7 +1541,7 @@ function RemoteAuthGate() {
    SHELL (shared chrome for both workspace types)
 ========================================================================= */
 
-function AppShell({ navItems, activeKey, onNavigate, title, headerActions, avatar, entityName, entitySub, onLogout, sidebarOpen, setSidebarOpen, moreOpen, setMoreOpen, moreItems, mobileExtraNav, children }) {
+function AppShell({ navItems, activeKey, onNavigate, title, subtitle, headerActions, avatar, entityName, entitySub, onLogout, sidebarOpen, setSidebarOpen, moreOpen, setMoreOpen, moreItems, mobileExtraNav, children }) {
   const { t } = useLang();
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 antialiased flex flex-col" style={{ fontFamily: "'Inter', sans-serif" }}>
@@ -1481,7 +1591,10 @@ function AppShell({ navItems, activeKey, onNavigate, title, headerActions, avata
               <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-sky-800"><Mic size={16} className="text-white" /></span>
               Market<span className="text-emerald-700">Pro</span>
             </div>
-            <h2 className="md:hidden font-semibold text-base truncate" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>{title}</h2>
+            <div className="min-w-0">
+              <h2 className="md:hidden font-semibold text-base truncate" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>{title}</h2>
+              {subtitle && <p className="md:hidden text-xs text-slate-400 truncate">{subtitle}</p>}
+            </div>
           </div>
           <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
             <div className="hidden lg:block text-right mr-1">
@@ -1764,7 +1877,7 @@ function Workspace({ user, onLogout, onPay, accounts, messages, sendMessage }) {
 
   return (
     <AppShell
-      navItems={NAV_ITEMS} activeKey={view} onNavigate={goTo} title={pageTitle}
+      navItems={NAV_ITEMS} activeKey={view} onNavigate={goTo} title={pageTitle} subtitle={view === "dashboard" ? t("dashboard.headerSubtitle") : undefined}
       avatar={user.avatar} entityName={user.boutique} entitySub={t("common.shop")} onLogout={onLogout}
       sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} moreOpen={moreOpen} setMoreOpen={setMoreOpen} moreItems={moreItems}
       headerActions={
@@ -1927,9 +2040,56 @@ function SupplierSettingsView({ user }) {
    VIEWS — dashboard / sales / stocks / purchases / clients / suppliers / expenses / payments / reports / settings
 ========================================================================= */
 
+function PerformanceChart({ data, peakIndex, lang }) {
+  const max = Math.max(...data, 1);
+  const w = 100, h = 100;
+  const topPad = 20;
+  const containerH = 200, bottomGap = 24, svgH = containerH - bottomGap;
+  const points = data.map((v, i) => ({ x: (i / (data.length - 1)) * w, y: topPad + ((max - v) / max) * (h - topPad) }));
+  const linePoints = points.map((p) => `${p.x},${p.y}`).join(" ");
+  const areaPoints = `0,${h} ${linePoints} ${w},${h}`;
+  const gridFractions = [1, 0.66, 0.33, 0];
+  const peak = points[peakIndex];
+
+  return (
+    <div className="flex gap-2">
+      <div className="flex flex-col justify-between text-right flex-shrink-0" style={{ height: containerH, paddingBottom: bottomGap }}>
+        {gridFractions.map((f) => <span key={f} className="text-[10px] text-slate-400 leading-none">{f === 0 ? "0" : `${Math.round((max * f) / 1000)}k`}</span>)}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="relative" style={{ height: containerH }}>
+          <div className="absolute inset-x-0 top-0 flex flex-col justify-between" style={{ height: containerH, paddingBottom: bottomGap }}>
+            {gridFractions.map((f) => <div key={f} className="border-t border-dashed border-slate-100" />)}
+          </div>
+          <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className="absolute inset-x-0 top-0" style={{ height: svgH }}>
+            <polygon points={areaPoints} fill="#059669" opacity="0.08" />
+            <polyline points={linePoints} fill="none" stroke="#059669" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+            {points.map((p, i) => <circle key={i} cx={p.x} cy={p.y} r="1.8" fill="#059669" stroke="#fff" strokeWidth="1" vectorEffect="non-scaling-stroke" />)}
+          </svg>
+          {peak && (
+            <div
+              className="absolute -translate-x-1/2 -translate-y-[130%] rounded-lg bg-emerald-700 text-white text-[10px] font-mono font-semibold px-2 py-1 whitespace-nowrap shadow-md"
+              style={{ left: `${peak.x}%`, top: `${(peak.y / h) * svgH}px` }}
+            >
+              {fmt(data[peakIndex])}
+            </div>
+          )}
+        </div>
+        <div className="flex justify-between mt-1.5">
+          {data.map((_, i) => <span key={i} className="text-[10px] text-slate-400">{shortDateLabel(data.length - 1 - i, lang)}</span>)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DashboardView({ revenueToday, profitToday, transactionsToday, lowStock, weekHistory, maxWeek, categoryTotals, categoryTotal, recentActivity, debtsWithStatus, onVoice, userFirstName, daysAgoLabel }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const alertDebts = debtsWithStatus.filter((d) => d.computedStatus === "overdue" || d.computedStatus === "dueSoon").slice(0, 4);
+  const profitSeries = weekHistory.map((v) => Math.round(v * 0.32));
+  const txSeries = weekHistory.map((v) => Math.max(1, Math.round(v / 30000)));
+  const peakIndex = weekHistory.reduce((best, v, i) => (v > weekHistory[best] ? i : best), 0);
+
   return (
     <div className="space-y-8">
       <div className="rounded-2xl bg-gradient-to-br from-slate-950 to-emerald-950 text-white p-6 sm:p-7 flex flex-wrap items-center justify-between gap-5">
@@ -1941,23 +2101,25 @@ function DashboardView({ revenueToday, profitToday, transactionsToday, lowStock,
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard label={t("dashboard.revenueToday")} value={fmt(revenueToday)} delta={t("dashboard.updatedLive")} icon={TrendingUp} />
-        <StatCard label={t("dashboard.profitToday")} value={fmt(profitToday)} delta={t("dashboard.marginEstimate")} icon={Sparkles} />
-        <StatCard label={t("dashboard.transactionsToday")} value={fmtNum(transactionsToday)} delta={t("dashboard.salesPlusPurchases")} icon={Receipt} />
-        <StatCard label={t("dashboard.lowStockCard")} value={fmtNum(lowStock.length)} delta={lowStock.length ? lowStock.map((p) => p.name).join(", ") : t("dashboard.allGood")} deltaTone={lowStock.length ? "warn" : "up"} icon={AlertTriangle} />
+        <StatCard label={t("dashboard.revenueToday")} value={fmt(revenueToday)} delta={t("dashboard.updatedLive")} icon={TrendingUp} spark={<MiniSparkline data={weekHistory} color="#059669" />} />
+        <StatCard label={t("dashboard.profitToday")} value={fmt(profitToday)} delta={t("dashboard.marginEstimate")} icon={Sparkles} spark={<MiniSparkline data={profitSeries} color="#059669" />} />
+        <StatCard label={t("dashboard.transactionsToday")} value={fmtNum(transactionsToday)} delta={t("dashboard.salesPlusPurchases")} icon={Receipt} spark={<MiniBars data={txSeries} color="#1C5C8C" />} />
+        <StatCard
+          label={t("dashboard.lowStockCard")} value={fmtNum(lowStock.length)}
+          delta={lowStock.length ? lowStock.map((p) => p.name).join(", ") : t("dashboard.allGood")} deltaTone={lowStock.length ? "warn" : "up"} icon={AlertTriangle}
+          spark={!lowStock.length ? (
+            <div className="flex justify-center pt-1"><span className="h-8 w-8 rounded-full bg-emerald-100 flex items-center justify-center"><CheckCircle2 size={16} className="text-emerald-600" /></span></div>
+          ) : null}
+        />
       </div>
 
       <div className="grid lg:grid-cols-[1.4fr_1fr] gap-5">
         <div className="rounded-2xl border border-slate-900/10 bg-white p-6">
-          <h4 className="text-sm font-semibold text-slate-500 mb-5">{t("dashboard.salesEvolution")}</h4>
-          <div className="flex items-end gap-3 h-40">
-            {weekHistory.map((v, i) => (
-              <div key={i} className="flex-1 flex flex-col items-center gap-2">
-                <div className="w-full rounded-t-md bg-gradient-to-b from-emerald-500 to-emerald-700" style={{ height: `${Math.max(6, (v / maxWeek) * 130)}px` }} />
-                <span className="text-[10px] text-slate-400">{i === weekHistory.length - 1 ? "•" : `J-${weekHistory.length - 1 - i}`}</span>
-              </div>
-            ))}
+          <div className="flex items-center justify-between mb-6">
+            <h4 className="text-sm font-semibold text-slate-500">{t("dashboard.performanceOverview")}</h4>
+            <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-900/10 px-3 py-1.5 text-xs font-medium text-slate-600">{t("dashboard.last7Days")}</span>
           </div>
+          <PerformanceChart data={weekHistory} peakIndex={peakIndex} lang={lang} />
         </div>
         <div className="rounded-2xl border border-slate-900/10 bg-white p-6">
           <h4 className="text-sm font-semibold text-slate-500 mb-5">{t("dashboard.salesByCategory")}</h4>
@@ -2528,13 +2690,28 @@ function SaleModal({ open, onClose, products, clients, onSubmit }) {
   const [product, setProduct] = useState(products[0]?.name || "");
   const [qty, setQty] = useState(1);
   const [amount, setAmount] = useState("");
+  const [amountEdited, setAmountEdited] = useState(false);
   const [client, setClient] = useState(clients[0]?.name || "Client comptant");
   const [paymentMethod, setPaymentMethod] = useState("especes");
   const [paymentStatus, setPaymentStatus] = useState("paid");
   const [deposit, setDeposit] = useState("");
   const [dueDate, setDueDate] = useState(isoDateOffset(7));
 
-  useEffect(() => { if (open) { setProduct(products[0]?.name || ""); setQty(1); setAmount(""); setClient(clients[0]?.name || "Client comptant"); setPaymentMethod("especes"); setPaymentStatus("paid"); setDeposit(""); setDueDate(isoDateOffset(7)); } }, [open]); // eslint-disable-line
+  useEffect(() => { if (open) { setProduct(products[0]?.name || ""); setQty(1); setAmount(""); setAmountEdited(false); setClient(clients[0]?.name || "Client comptant"); setPaymentMethod("especes"); setPaymentStatus("paid"); setDeposit(""); setDueDate(isoDateOffset(7)); } }, [open]); // eslint-disable-line
+
+  const selectedProduct = products.find((p) => p.name === product);
+
+  // Pre-fill the amount from the selected product's unit price × quantity.
+  // Stops auto-updating once the merchant edits the amount by hand (e.g. to
+  // apply a discount), so their custom total is never silently overwritten.
+  useEffect(() => {
+    if (amountEdited || !selectedProduct) return;
+    setAmount(String(selectedProduct.price * (Number(qty) || 1)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product, qty, amountEdited]);
+
+  const handleProductChange = (name) => { setProduct(name); setAmountEdited(false); };
+  const handleAmountChange = (value) => { setAmount(value); setAmountEdited(true); };
 
   const total = Number(amount) || 0;
   const depositNum = Number(deposit) || 0;
@@ -2551,10 +2728,13 @@ function SaleModal({ open, onClose, products, clients, onSubmit }) {
   return (
     <Modal open={open} onClose={onClose} title={t("common.newSale")}>
       <div onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}>
-        <Field label={t("sales.product")}><select value={product} onChange={(e) => setProduct(e.target.value)} className={inputCls}>{products.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}</select></Field>
+        <Field label={t("sales.product")}>
+          <select value={product} onChange={(e) => handleProductChange(e.target.value)} className={inputCls}>{products.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}</select>
+          {selectedProduct && <span className="block text-xs text-slate-400 mt-1.5">{t("sales.unitPriceHint", fmt(selectedProduct.price))}</span>}
+        </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label={t("sales.quantity")}><input type="number" min="1" value={qty} onChange={(e) => setQty(e.target.value)} className={inputCls} required /></Field>
-          <Field label={t("sales.amount")}><input type="number" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} className={inputCls} required /></Field>
+          <Field label={t("sales.amount")}><input type="number" min="0" value={amount} onChange={(e) => handleAmountChange(e.target.value)} className={inputCls} required /></Field>
         </div>
         <Field label={t("sales.client")}><select value={client} onChange={(e) => setClient(e.target.value)} className={inputCls}>{clients.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}</select></Field>
         <Field label={t("sales.payment")}>
