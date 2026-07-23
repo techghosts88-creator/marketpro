@@ -1,8 +1,30 @@
 services:
+  # ---- Backend: Express + Prisma REST API ----
   - type: web
-    name: marketpro
+    name: marketpro-backend
+    runtime: node
+    rootDir: server
+    plan: free
+    buildCommand: npm install && npx prisma generate
+    startCommand: npm start
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGIN
+        sync: false
+      - key: NODE_VERSION
+        value: 20
+
+  # ---- Frontend: Vite static build ----
+  - type: web
+    name: marketpro-frontend
     runtime: static
-    buildCommand: npm run build
+    rootDir: .
+    buildCommand: npm install && npm run build
     staticPublishPath: dist
     pullRequestPreviewsEnabled: true
     routes:
@@ -11,7 +33,5 @@ services:
         source: /*
         destination: /index.html
     envVars:
-      - key: VITE_SUPABASE_URL
-        sync: false
-      - key: VITE_SUPABASE_ANON_KEY
+      - key: VITE_API_URL
         sync: false

@@ -1,67 +1,51 @@
-import { supabase, isSupabaseConfigured } from "./supabaseClient";
+import { api, isRemoteConfigured } from "./apiClient";
 
-const outboxKey = (ownerId) => `marketpro:outbox:${ownerId}`;
+const OUTBOX_KEY = "marketpro:outbox";
 
-function loadOutbox(ownerId) {
+function loadOutbox() {
   try {
-    const raw = window.localStorage.getItem(outboxKey(ownerId));
+    const raw = window.localStorage.getItem(OUTBOX_KEY);
     return raw ? JSON.parse(raw) : [];
   } catch (e) {
     return [];
   }
 }
 
-function saveOutbox(ownerId, ops) {
-  try { window.localStorage.setItem(outboxKey(ownerId), JSON.stringify(ops)); } catch (e) { /* storage unavailable */ }
+function saveOutbox(ops) {
+  try { window.localStorage.setItem(OUTBOX_KEY, JSON.stringify(ops)); } catch (e) { /* storage unavailable */ }
 }
 
-// Queue a write to retry later (used when offline or when a write fails).
-export function queueWrite(ownerId, op) {
-  const ops = loadOutbox(ownerId);
+export function queueWrite(op) {
+  const ops = loadOutbox();
   ops.push(op);
-  saveOutbox(ownerId, ops);
+  saveOutbox(ops);
 }
 
-export function outboxSize(ownerId) {
-  return loadOutbox(ownerId).length;
-}
-
-// Attempt one write against Supabase. Returns true on success.
 async function performWrite(op) {
-  const { table, type, row, id, patch } = op;
-  if (type === "upsert") {
-    const { error } = await supabase.from(table).upsert(row);
-    return !error;
-  }
-  if (type === "update") {
-    const { error } = await supabase.from(table).update(patch).eq("id", id);
-    return !error;
-  }
-  if (type === "delete") {
-    const { error } = await supabase.from(table).delete().eq("id", id);
-    return !error;
-  }
+  if (op.type === "create") { await api.create(op.resource, op.body); return true; }
+  if (op.type === "update") { await api.update(op.resource, op.id, op.body); return true; }
+  if (op.type === "delete") { await api.remove(op.resource, op.id); return true; }
   return true;
 }
 
 // Try a write immediately; if it fails (offline, network error), queue it
-// for later instead of losing the change. UI state is always updated
+// for later instead of losing the change. The UI is always updated
 // optimistically by the caller before this runs, so the user never waits.
-export async function syncWrite(ownerId, op) {
-  if (!isSupabaseConfigured) return;
-  if (!navigator.onLine) { queueWrite(ownerId, op); return; }
+export async function syncWrite(op) {
+  if (!isRemoteConfigured) return;
+  if (!navigator.onLine) { queueWrite(op); return; }
   try {
     const ok = await performWrite(op);
-    if (!ok) queueWrite(ownerId, op);
+    if (!ok) queueWrite(op);
   } catch (e) {
-    queueWrite(ownerId, op);
+    queueWrite(op);
   }
 }
 
 // Called on reconnect (and on mount) to flush anything queued while offline.
-export async function flushOutbox(ownerId) {
-  if (!isSupabaseConfigured) return;
-  const ops = loadOutbox(ownerId);
+export async function flushOutbox() {
+  if (!isRemoteConfigured) return;
+  const ops = loadOutbox();
   if (!ops.length) return;
   const remaining = [];
   for (const op of ops) {
@@ -72,5 +56,5 @@ export async function flushOutbox(ownerId) {
       remaining.push(op);
     }
   }
-  saveOutbox(ownerId, remaining);
+  saveOutbox(remaining);
 }

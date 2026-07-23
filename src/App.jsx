@@ -8,7 +8,7 @@ import {
   MapPin, Send, Coins, ArrowLeft, WifiOff, MicOff,
 } from "lucide-react";
 import logoUrl from "./assets/logo.png";
-import { supabase, isSupabaseConfigured, usernameToEmail } from "./lib/supabaseClient";
+import { api, isRemoteConfigured, getToken, setToken } from "./lib/apiClient";
 import { syncWrite, flushOutbox } from "./lib/offlineSync";
 
 /* =========================================================================
@@ -45,39 +45,6 @@ function newId() {
   return `id-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-/* ---- camelCase (app) <-> snake_case (Postgres) row mapping, per table ---- */
-function mapKeysToRow(obj, keyMap) {
-  const row = {};
-  Object.entries(obj).forEach(([k, v]) => { row[keyMap[k] || k] = v; });
-  return row;
-}
-function mapKeysFromRow(row, keyMap) {
-  const inverse = Object.fromEntries(Object.entries(keyMap).map(([a, b]) => [b, a]));
-  const obj = {};
-  Object.entries(row).forEach(([k, v]) => { obj[inverse[k] || k] = v; });
-  return obj;
-}
-const OWNER_ONLY_KEYMAP = { ownerId: "owner_id" };
-const TIMED_KEYMAP = { ownerId: "owner_id", createdAt: "created_at" };
-const SALE_KEYMAP = { ownerId: "owner_id", createdAt: "created_at", paymentMethod: "payment_method", paymentStatus: "payment_status", amountPaid: "amount_paid", amountDue: "amount_due", dueDate: "due_date" };
-const DEBT_KEYMAP = { ownerId: "owner_id", clientName: "client_name", dueDate: "due_date" };
-
-const toProductRow = (ownerId, o) => mapKeysToRow({ ...o, ownerId }, OWNER_ONLY_KEYMAP);
-const toClientRow = (ownerId, o) => mapKeysToRow({ ...o, ownerId }, OWNER_ONLY_KEYMAP);
-const toSupplierRow = (ownerId, o) => mapKeysToRow({ ...o, ownerId }, OWNER_ONLY_KEYMAP);
-const toPurchaseRow = (ownerId, o) => mapKeysToRow({ ...o, ownerId }, TIMED_KEYMAP);
-const toExpenseRow = (ownerId, o) => mapKeysToRow({ ...o, ownerId }, TIMED_KEYMAP);
-const toSaleRow = (ownerId, o) => mapKeysToRow({ ...o, ownerId }, SALE_KEYMAP);
-const toDebtRow = (ownerId, o) => mapKeysToRow({ ...o, ownerId }, DEBT_KEYMAP);
-
-const fromProductRow = (r) => { const { owner_id, ...rest } = mapKeysFromRow(r, OWNER_ONLY_KEYMAP); return rest; };
-const fromClientRow = (r) => { const { owner_id, ...rest } = mapKeysFromRow(r, OWNER_ONLY_KEYMAP); return rest; };
-const fromSupplierRow = (r) => { const { owner_id, ...rest } = mapKeysFromRow(r, OWNER_ONLY_KEYMAP); return rest; };
-const fromPurchaseRow = (r) => { const { owner_id, ...rest } = mapKeysFromRow(r, TIMED_KEYMAP); return rest; };
-const fromExpenseRow = (r) => { const { owner_id, ...rest } = mapKeysFromRow(r, TIMED_KEYMAP); return rest; };
-const fromSaleRow = (r) => { const { owner_id, ...rest } = mapKeysFromRow(r, SALE_KEYMAP); return rest; };
-const fromDebtRow = (r) => { const { owner_id, ...rest } = mapKeysFromRow(r, DEBT_KEYMAP); return rest; };
-
 function daysUntil(dateStr) {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const due = new Date(`${dateStr}T00:00:00`);
@@ -91,8 +58,9 @@ function formatDate(dateStr) {
 /* =========================================================================
    OFFLINE PERSISTENCE — data survives reloads and lost connectivity.
    Each merchant/supplier's data is namespaced by username in localStorage.
-   This is a pragmatic client-side store; a real backend (e.g. Supabase)
-   would sync the same shape to a server when connectivity returns.
+   This is a pragmatic client-side store; the real backend (the Express API
+   in /server, backed by Postgres on Supabase) is synced separately via
+   src/lib/offlineSync.js.
 ========================================================================= */
 
 function usePersistentState(storageKey, initialValue) {
@@ -153,7 +121,6 @@ const TRANSLATIONS = {
       errorUsernameTaken: "Cet identifiant est déjà utilisé.",
       demoHint: "Comptes de démo : awa / 1234 (commerçant), moussa / 1234 (commerçant), sahel / 1234 (fournisseur)",
       welcomeBack: "Chaque utilisateur a son propre espace, protégé par un identifiant et un mot de passe.",
-      confirmEmailNotice: "Compte créé. Selon la configuration de votre projet Supabase, une confirmation peut être requise avant la première connexion — réessayez de vous connecter dans un instant.",
     },
     dashboard: {
       greetingWord: "Bonjour", subtitle: "Dites simplement ce qui s'est passé aujourd'hui",
@@ -236,7 +203,6 @@ const TRANSLATIONS = {
       errorUsernameTaken: "This username is already taken.",
       demoHint: "Demo accounts: awa / 1234 (merchant), moussa / 1234 (merchant), sahel / 1234 (supplier)",
       welcomeBack: "Every user gets their own space, protected by a username and password.",
-      confirmEmailNotice: "Account created. Depending on your Supabase project's settings, confirmation may be required before your first login — try logging in again in a moment.",
     },
     dashboard: {
       greetingWord: "Hello", subtitle: "Just say what happened today",
@@ -699,7 +665,7 @@ function LoginScreen({ onLogin, onRegister }) {
               </Field>
               {error && <p className="text-xs text-rose-600 mb-4">{error}</p>}
               <button type="button" disabled={loading} onClick={submitLogin} className="w-full rounded-full bg-emerald-600 text-white py-3 text-sm font-semibold hover:bg-emerald-500 disabled:opacity-60">{loading ? "…" : t("login.loginButton")}</button>
-              {!isSupabaseConfigured && <p className="text-xs text-slate-400 text-center mt-4">{t("login.demoHint")}</p>}
+              {!isRemoteConfigured && <p className="text-xs text-slate-400 text-center mt-4">{t("login.demoHint")}</p>}
             </div>
           ) : (
             <div onKeyDown={(e) => { if (e.key === "Enter") submitRegister(); }}>
@@ -922,7 +888,7 @@ function VoiceOverlay({ open, onClose, onCommand }) {
    MESSAGING (shared by merchants and suppliers)
 ========================================================================= */
 
-/* Unified identity: Supabase-mode accounts have a real uuid `id`; local-demo
+/* Unified identity: Remote-mode accounts have a real uuid `id`; local-demo
    accounts don't, so we fall back to `username`. Used anywhere two accounts
    need to reference each other (messaging, directory). */
 function accountKey(account) { return account?.id || account?.username; }
@@ -1060,7 +1026,7 @@ export default function MarketProApp() {
 }
 
 function AuthGate() {
-  return isSupabaseConfigured ? <SupabaseAuthGate /> : <LocalAuthGate />;
+  return isRemoteConfigured ? <RemoteAuthGate /> : <LocalAuthGate />;
 }
 
 /* ---- Local demo mode: built-in accounts, localStorage only ---- */
@@ -1100,101 +1066,76 @@ function LocalAuthGate() {
   return <Workspace key={currentUser.username} user={currentUser} {...shared} />;
 }
 
-/* ---- Supabase mode: real accounts (Auth), real Postgres data ---- */
-function profileToAccount(row) {
-  return {
-    id: row.id, username: row.username, role: row.role,
-    boutique: row.boutique, company: row.company, city: row.city,
-    phone: row.phone, avatar: row.avatar, categories: row.categories || [],
-  };
-}
-
-function SupabaseAuthGate() {
+/* ---- Remote mode: real accounts + real Postgres data, via the Express backend ---- */
+function RemoteAuthGate() {
   const { t } = useLang();
+  const [user, setUser] = useState(null);
   const [accounts, setAccounts] = useState([]);
   const [messages, setMessages] = useState([]);
-  const [sessionUserId, setSessionUserId] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
 
+  // Restore a session from a previously stored JWT, if any.
   useEffect(() => {
-    let subscription;
-    supabase.auth.getSession().then(({ data }) => {
-      setSessionUserId(data.session?.user?.id || null);
+    (async () => {
+      if (!getToken()) { setAuthLoading(false); return; }
+      try {
+        const { user: me } = await api.me();
+        setUser(me);
+      } catch (e) {
+        setToken(null);
+      }
       setAuthLoading(false);
-    });
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSessionUserId(session?.user?.id || null);
-    });
-    subscription = data.subscription;
-    return () => subscription?.unsubscribe();
+    })();
   }, []);
 
+  // Directory of all registered accounts (for the supplier directory and
+  // for showing the other participant's name in messages).
   useEffect(() => {
+    if (!user) { setAccounts([]); return; }
     let cancelled = false;
-    supabase.from("profiles").select("*").then(({ data }) => { if (!cancelled && data) setAccounts(data.map(profileToAccount)); });
-    const channel = supabase
-      .channel("profiles-changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, (payload) => {
-        setAccounts((prev) => {
-          const others = prev.filter((a) => a.id !== payload.new?.id && a.id !== payload.old?.id);
-          return payload.eventType === "DELETE" ? others : [...others, profileToAccount(payload.new)];
-        });
-      })
-      .subscribe();
-    return () => { cancelled = true; supabase.removeChannel(channel); };
-  }, []);
+    api.profiles().then((rows) => { if (!cancelled) setAccounts(rows); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [user]);
 
+  // Poll for messages while logged in. Simpler and more resilient than a
+  // persistent WebSocket on a free-tier host that can spin down when idle.
   useEffect(() => {
-    if (!sessionUserId) { setMessages([]); return; }
+    if (!user) { setMessages([]); return; }
     let cancelled = false;
-    supabase.from("messages").select("*").or(`from_user.eq.${sessionUserId},to_user.eq.${sessionUserId}`).order("created_at", { ascending: true })
-      .then(({ data }) => { if (!cancelled && data) setMessages(data.map((m) => ({ id: m.id, from: m.from_user, to: m.to_user, text: m.text }))); });
-    const channel = supabase
-      .channel("messages-changes")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload) => {
-        const m = payload.new;
-        if (m.from_user === sessionUserId || m.to_user === sessionUserId) {
-          setMessages((prev) => (prev.some((x) => x.id === m.id) ? prev : [...prev, { id: m.id, from: m.from_user, to: m.to_user, text: m.text }]));
-        }
-      })
-      .subscribe();
-    return () => { cancelled = true; supabase.removeChannel(channel); };
-  }, [sessionUserId]);
-
-  const currentUser = accounts.find((a) => a.id === sessionUserId) || null;
+    const load = () => api.messages().then((rows) => { if (!cancelled) setMessages(rows); }).catch(() => {});
+    load();
+    const interval = setInterval(load, 4000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [user]);
 
   const sendMessage = async (from, to, text) => {
     setMessages((m) => [...m, { id: newId(), from, to, text }]); // optimistic
-    await supabase.from("messages").insert({ from_user: from, to_user: to, text });
+    try { await api.sendMessage(to, text); } catch (e) { /* will reconcile on next poll */ }
   };
 
   const handleLogin = async ({ username, password }) => {
-    const { error } = await supabase.auth.signInWithPassword({ email: usernameToEmail(username), password });
-    if (error) return { error: t("login.errorCredentials") };
-    return {};
+    try {
+      const { token, user: me } = await api.login({ username, password });
+      setToken(token);
+      setUser(me);
+      return {};
+    } catch (e) {
+      return { error: t("login.errorCredentials") };
+    }
   };
 
   const handleRegister = async ({ role, name, city, username, password }) => {
-    const { data: existing } = await supabase.from("profiles").select("id").eq("username", username).maybeSingle();
-    if (existing) return { error: t("login.errorUsernameTaken") };
-
-    const { data, error } = await supabase.auth.signUp({ email: usernameToEmail(username), password });
-    if (error) return { error: error.message };
-    if (!data.session) return { error: t("login.confirmEmailNotice") };
-
-    const profileRow = {
-      id: data.user.id, username, role,
-      boutique: role === "merchant" ? (name || "Ma boutique") : null,
-      company: role === "supplier" ? (name || "Mon entreprise") : null,
-      city, phone: "", avatar: (name[0] || "M").toUpperCase(), categories: [],
-    };
-    const { error: profileError } = await supabase.from("profiles").insert(profileRow);
-    if (profileError) return { error: profileError.message };
-    setAccounts((prev) => [...prev, profileToAccount(profileRow)]);
-    return {};
+    try {
+      const { token, user: me } = await api.register({ role, name, city, username, password });
+      setToken(token);
+      setUser(me);
+      return {};
+    } catch (e) {
+      return { error: e.message || t("login.errorUsernameTaken") };
+    }
   };
 
-  const onLogout = async () => { await supabase.auth.signOut(); };
+  const onLogout = () => { setToken(null); setUser(null); };
 
   if (authLoading) {
     return (
@@ -1204,11 +1145,11 @@ function SupabaseAuthGate() {
     );
   }
 
-  if (!currentUser) return <LoginScreen onLogin={handleLogin} onRegister={handleRegister} />;
+  if (!user) return <LoginScreen onLogin={handleLogin} onRegister={handleRegister} />;
 
   const shared = { accounts, messages, sendMessage, onLogout };
-  if (currentUser.role === "supplier") return <SupplierWorkspace key={currentUser.id} user={currentUser} {...shared} />;
-  return <Workspace key={currentUser.id} user={currentUser} {...shared} />;
+  if (user.role === "supplier") return <SupplierWorkspace key={user.id} user={user} {...shared} />;
+  return <Workspace key={user.id} user={user} {...shared} />;
 }
 
 /* =========================================================================
@@ -1323,37 +1264,29 @@ function Workspace({ user, onLogout, accounts, messages, sendMessage }) {
   const [expenses, setExpenses] = usePersistentState(nsKey("expenses"), seed.expenses);
   const [debts, setDebts] = usePersistentState(nsKey("debts"), seed.debts);
 
-  // When Supabase is configured, hydrate from the real database on mount and
-  // whenever connectivity returns, then flush anything queued while offline.
-  // In local demo mode this effect is a no-op and the usePersistentState
-  // values above (already restored from localStorage) are simply kept.
+  // When a real backend is configured, hydrate from it on mount and whenever
+  // connectivity returns, then flush anything queued while offline. In local
+  // demo mode this effect is a no-op and the usePersistentState values above
+  // (already restored from localStorage) are simply kept.
   useEffect(() => {
-    if (!isSupabaseConfigured || !user.id) return;
+    if (!isRemoteConfigured || !user.id) return;
     let cancelled = false;
 
     async function hydrate() {
-      await flushOutbox(user.id);
-      const [p, c, s, sa, pu, ex, de] = await Promise.all([
-        supabase.from("products").select("*").eq("owner_id", user.id),
-        supabase.from("clients").select("*").eq("owner_id", user.id),
-        supabase.from("suppliers").select("*").eq("owner_id", user.id),
-        supabase.from("sales").select("*").eq("owner_id", user.id).order("created_at", { ascending: false }),
-        supabase.from("purchases").select("*").eq("owner_id", user.id).order("created_at", { ascending: false }),
-        supabase.from("expenses").select("*").eq("owner_id", user.id).order("created_at", { ascending: false }),
-        supabase.from("debts").select("*").eq("owner_id", user.id).order("created_at", { ascending: false }),
+      await flushOutbox();
+      const [p, c, sa, s, pu, ex, de] = await Promise.all([
+        api.list("products"), api.list("clients"), api.list("suppliers"),
+        api.list("sales"), api.list("purchases"), api.list("expenses"), api.list("debts"),
       ]);
       if (cancelled) return;
-      if (p.data) setProducts(p.data.map(fromProductRow));
-      if (c.data) {
-        const fetched = c.data.map(fromClientRow);
-        const hasComptant = fetched.some((cl) => cl.name === "Client comptant");
-        setClients(hasComptant ? fetched : [...fetched, { id: newId(), name: "Client comptant", phone: "—" }]);
-      }
-      if (sa.data) setSuppliers(sa.data.map(fromSupplierRow));
-      if (s.data) setSales(s.data.map(fromSaleRow));
-      if (pu.data) setPurchases(pu.data.map(fromPurchaseRow));
-      if (ex.data) setExpenses(ex.data.map(fromExpenseRow));
-      if (de.data) setDebts(de.data.map(fromDebtRow));
+      setProducts(p);
+      const hasComptant = c.some((cl) => cl.name === "Client comptant");
+      setClients(hasComptant ? c : [...c, { id: newId(), name: "Client comptant", phone: "—" }]);
+      setSuppliers(sa);
+      setSales(s);
+      setPurchases(pu);
+      setExpenses(ex);
+      setDebts(de);
     }
     hydrate();
     return () => { cancelled = true; };
@@ -1408,24 +1341,25 @@ function Workspace({ user, onLogout, accounts, messages, sendMessage }) {
   const bestSellers = useMemo(() => { const t = {}; sales.forEach((s) => { t[s.product] = (t[s.product] || 0) + s.amount; }); return Object.entries(t).sort((a, b) => b[1] - a[1]).slice(0, 5); }, [sales]);
 
   const findClientPhone = (name) => clients.find((c) => c.name === name)?.phone || "—";
-  const ownerId = user.id;
 
   const applySale = ({ qty, unit, product, amount, client, paymentMethod, paymentStatus = "paid", amountPaid, amountDue = 0, dueDate }) => {
     const clientName = client || "Client comptant";
     const row = { id: newId(), createdAt: new Date().toISOString(), product, qty, unit: unit || "unités", amount, client: clientName, category: products.find((p) => p.name === product)?.category || "Autre", paymentMethod: paymentMethod || "especes", paymentStatus, amountPaid: amountPaid ?? amount, amountDue };
     setSales((s) => [row, ...s]);
-    syncWrite(ownerId, { table: "sales", type: "upsert", row: toSaleRow(ownerId, row) });
+    syncWrite({ type: "create", resource: "sales", body: row });
 
-    setProducts((ps) => ps.map((p) => (p.name.toLowerCase().includes(product.toLowerCase().split(" ")[0]) ? { ...p, stock: Math.max(0, p.stock - qty) } : p)));
+    const affected = products.find((p) => p.name.toLowerCase().includes(product.toLowerCase().split(" ")[0]));
+    setProducts((ps) => ps.map((p) => (p.id === affected?.id ? { ...p, stock: Math.max(0, p.stock - qty) } : p)));
+    if (affected) syncWrite({ type: "update", resource: "products", id: affected.id, body: { stock: Math.max(0, affected.stock - qty) } });
 
     if (amountDue > 0) {
       const debtRow = { id: newId(), clientName, amount: amountDue, dueDate: dueDate || isoDateOffset(7), status: "ouvert", reminders: [] };
       setDebts((d) => [debtRow, ...d]);
-      syncWrite(ownerId, { table: "debts", type: "upsert", row: toDebtRow(ownerId, debtRow) });
+      syncWrite({ type: "create", resource: "debts", body: debtRow });
       if (!clients.some((c) => c.name === clientName)) {
         const clientRow = { id: newId(), name: clientName, phone: "—" };
         setClients((c) => [...c, clientRow]);
-        syncWrite(ownerId, { table: "clients", type: "upsert", row: toClientRow(ownerId, clientRow) });
+        syncWrite({ type: "create", resource: "clients", body: clientRow });
       }
     }
     pushToast(t("toasts.saleSaved"));
@@ -1434,47 +1368,51 @@ function Workspace({ user, onLogout, accounts, messages, sendMessage }) {
   const applyPurchase = ({ qty, unit, product, amount, supplier }) => {
     const row = { id: newId(), createdAt: new Date().toISOString(), product, qty, unit: unit || "unités", amount, supplier: supplier || "Fournisseur" };
     setPurchases((s) => [row, ...s]);
-    syncWrite(ownerId, { table: "purchases", type: "upsert", row: toPurchaseRow(ownerId, row) });
-    setProducts((ps) => ps.map((p) => (p.name.toLowerCase().includes(product.toLowerCase().split(" ")[0]) ? { ...p, stock: p.stock + qty } : p)));
+    syncWrite({ type: "create", resource: "purchases", body: row });
+
+    const affected = products.find((p) => p.name.toLowerCase().includes(product.toLowerCase().split(" ")[0]));
+    setProducts((ps) => ps.map((p) => (p.id === affected?.id ? { ...p, stock: p.stock + qty } : p)));
+    if (affected) syncWrite({ type: "update", resource: "products", id: affected.id, body: { stock: affected.stock + qty } });
+
     pushToast(t("toasts.purchaseSaved"));
   };
 
   const applyExpense = ({ amount, label, category }) => {
     const row = { id: newId(), createdAt: new Date().toISOString(), label, amount, category: category || "Autre" };
     setExpenses((e) => [row, ...e]);
-    syncWrite(ownerId, { table: "expenses", type: "upsert", row: toExpenseRow(ownerId, row) });
+    syncWrite({ type: "create", resource: "expenses", body: row });
     pushToast(t("toasts.expenseSaved"));
   };
 
   const applyProduct = ({ name, unit, stock, threshold, price, category }) => {
     const row = { id: newId(), name, unit, stock, threshold, price, category };
     setProducts((p) => [...p, row]);
-    syncWrite(ownerId, { table: "products", type: "upsert", row: toProductRow(ownerId, row) });
+    syncWrite({ type: "create", resource: "products", body: row });
     pushToast(t("toasts.productAdded"));
   };
 
   const applyClient = ({ name, phone }) => {
     const row = { id: newId(), name, phone };
     setClients((c) => [...c, row]);
-    syncWrite(ownerId, { table: "clients", type: "upsert", row: toClientRow(ownerId, row) });
+    syncWrite({ type: "create", resource: "clients", body: row });
     pushToast(t("toasts.clientAdded"));
   };
 
   const applySupplier = ({ name, phone }) => {
     const row = { id: newId(), name, phone, balance: 0 };
     setSuppliers((s) => [...s, row]);
-    syncWrite(ownerId, { table: "suppliers", type: "upsert", row: toSupplierRow(ownerId, row) });
+    syncWrite({ type: "create", resource: "suppliers", body: row });
     pushToast(t("toasts.supplierAdded"));
   };
 
   const applyDebt = ({ clientName, amount, dueDate }) => {
     const row = { id: newId(), clientName, amount, dueDate, status: "ouvert", reminders: [] };
     setDebts((d) => [row, ...d]);
-    syncWrite(ownerId, { table: "debts", type: "upsert", row: toDebtRow(ownerId, row) });
+    syncWrite({ type: "create", resource: "debts", body: row });
     if (!clients.some((c) => c.name === clientName)) {
       const clientRow = { id: newId(), name: clientName, phone: "—" };
       setClients((c) => [...c, clientRow]);
-      syncWrite(ownerId, { table: "clients", type: "upsert", row: toClientRow(ownerId, clientRow) });
+      syncWrite({ type: "create", resource: "clients", body: clientRow });
     }
     pushToast(t("credits.debtAdded"));
   };
@@ -1482,7 +1420,7 @@ function Workspace({ user, onLogout, accounts, messages, sendMessage }) {
   const settleDebt = (debtId) => {
     const debt = debts.find((d) => d.id === debtId);
     setDebts((d) => d.map((x) => (x.id === debtId ? { ...x, status: "reglé" } : x)));
-    syncWrite(ownerId, { table: "debts", type: "update", id: debtId, patch: { status: "reglé" } });
+    syncWrite({ type: "update", resource: "debts", id: debtId, body: { status: "reglé" } });
     if (debt) pushToast(t("credits.settledToast", debt.clientName));
   };
 
@@ -1491,7 +1429,7 @@ function Workspace({ user, onLogout, accounts, messages, sendMessage }) {
     if (!debt) return;
     const newReminders = [...(debt.reminders || []), { id: newId(), createdAt: new Date().toISOString(), phone: findClientPhone(debt.clientName) }];
     setDebts((d) => d.map((x) => (x.id === debtId ? { ...x, reminders: newReminders } : x)));
-    syncWrite(ownerId, { table: "debts", type: "update", id: debtId, patch: { reminders: newReminders } });
+    syncWrite({ type: "update", resource: "debts", id: debtId, body: { reminders: newReminders } });
     pushToast(t("credits.reminderSent", debt.clientName));
   };
   const sendAllReminders = () => {
@@ -1499,7 +1437,7 @@ function Workspace({ user, onLogout, accounts, messages, sendMessage }) {
     setDebts((d) => d.map((x) => {
       if (!ids.includes(x.id)) return x;
       const newReminders = [...(x.reminders || []), { id: newId(), createdAt: new Date().toISOString(), phone: findClientPhone(x.clientName) }];
-      syncWrite(ownerId, { table: "debts", type: "update", id: x.id, patch: { reminders: newReminders } });
+      syncWrite({ type: "update", resource: "debts", id: x.id, body: { reminders: newReminders } });
       return { ...x, reminders: newReminders };
     }));
     pushToast(t("credits.allSent", ids.length));

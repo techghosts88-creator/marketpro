@@ -1,0 +1,157 @@
+// MarketPro backend — Prisma schema
+//
+// This is the single source of truth for the database, used by the Express
+// API in this `server/` project. The frontend never talks to Postgres or
+// Prisma directly — it only calls this backend's REST API.
+//
+// Access control (each merchant only sees their own data) is enforced in
+// application code (Express route handlers, scoped by the authenticated
+// user's id from the JWT) rather than in Postgres row-level security, since
+// only this backend ever holds real database credentials.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Profile {
+  id           String   @id @default(uuid()) @db.Uuid
+  username     String   @unique
+  passwordHash String   @map("password_hash")
+  role         String // 'merchant' | 'supplier'
+  boutique     String?
+  company      String?
+  city         String?
+  phone        String?
+  avatar       String?
+  categories   String[] @default([])
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  products  Product[]
+  clients   Client[]
+  suppliers Supplier[]
+  sales     Sale[]
+  purchases Purchase[]
+  expenses  Expense[]
+  debts     Debt[]
+
+  sentMessages     Message[] @relation("MessagesSent")
+  receivedMessages Message[] @relation("MessagesReceived")
+
+  @@map("profiles")
+}
+
+model Product {
+  id        String   @id @default(uuid()) @db.Uuid
+  ownerId   String   @map("owner_id") @db.Uuid
+  owner     Profile  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name      String
+  unit      String?
+  stock     Decimal  @default(0)
+  threshold Decimal  @default(0)
+  price     Decimal  @default(0)
+  category  String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("products")
+}
+
+model Client {
+  id        String   @id @default(uuid()) @db.Uuid
+  ownerId   String   @map("owner_id") @db.Uuid
+  owner     Profile  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name      String
+  phone     String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("clients")
+}
+
+model Supplier {
+  id        String   @id @default(uuid()) @db.Uuid
+  ownerId   String   @map("owner_id") @db.Uuid
+  owner     Profile  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name      String
+  phone     String?
+  balance   Decimal  @default(0)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("suppliers")
+}
+
+model Sale {
+  id            String    @id @default(uuid()) @db.Uuid
+  ownerId       String    @map("owner_id") @db.Uuid
+  owner         Profile   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  product       String
+  qty           Decimal   @default(1)
+  unit          String?
+  amount        Decimal   @default(0)
+  client        String?
+  category      String?
+  paymentMethod String?   @default("especes") @map("payment_method")
+  paymentStatus String    @default("paid") @map("payment_status") // 'paid' | 'credit' | 'partial'
+  amountPaid    Decimal   @default(0) @map("amount_paid")
+  amountDue     Decimal   @default(0) @map("amount_due")
+  dueDate       DateTime? @map("due_date") @db.Date
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("sales")
+}
+
+model Purchase {
+  id        String   @id @default(uuid()) @db.Uuid
+  ownerId   String   @map("owner_id") @db.Uuid
+  owner     Profile  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  product   String
+  qty       Decimal  @default(1)
+  unit      String?
+  amount    Decimal  @default(0)
+  supplier  String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("purchases")
+}
+
+model Expense {
+  id        String   @id @default(uuid()) @db.Uuid
+  ownerId   String   @map("owner_id") @db.Uuid
+  owner     Profile  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  label     String
+  amount    Decimal  @default(0)
+  category  String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("expenses")
+}
+
+model Debt {
+  id         String   @id @default(uuid()) @db.Uuid
+  ownerId    String   @map("owner_id") @db.Uuid
+  owner      Profile  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  clientName String   @map("client_name")
+  amount     Decimal  @default(0)
+  dueDate    DateTime @map("due_date") @db.Date
+  status     String   @default("ouvert") // 'ouvert' | 'reglé'
+  reminders  Json     @default("[]")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("debts")
+}
+
+model Message {
+  id         String   @id @default(uuid()) @db.Uuid
+  fromUserId String   @map("from_user") @db.Uuid
+  toUserId   String   @map("to_user") @db.Uuid
+  fromUser   Profile  @relation("MessagesSent", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser     Profile  @relation("MessagesReceived", fields: [toUserId], references: [id], onDelete: Cascade)
+  text       String
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("messages")
+}
