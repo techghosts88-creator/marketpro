@@ -1,3 +1,5 @@
+import { computeBillingStatus } from "./billing.js";
+
 export function toPublicProfile(p) {
   return {
     id: p.id,
@@ -9,6 +11,7 @@ export function toPublicProfile(p) {
     phone: p.phone,
     avatar: p.avatar,
     categories: p.categories || [],
+    billing: computeBillingStatus(p),
   };
 }
 

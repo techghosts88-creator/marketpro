@@ -64,6 +64,8 @@ npm run dev
 
 Le backend tourne sur `http://localhost:4000`. Testez-le : `curl http://localhost:4000/health` doit répondre `{"ok":true}`.
 
+> **Si vous aviez déjà déployé une version précédente** : le schéma a changé (ajout des champs d'abonnement sur `profiles` et de la table `payments`). Relancez `npm run db:push` (en local ou depuis le Shell Render du service backend) pour mettre à jour votre base existante — vos données actuelles sont conservées, seules les nouvelles colonnes/table sont ajoutées.
+
 #### 3. Lancer le frontend en local, connecté au backend
 
 ```bash
@@ -101,6 +103,8 @@ En mode backend réel, créez vos propres comptes depuis l'écran « Créer un c
 - **Fonctionne hors-ligne** : les données sont mises en cache localement et les écritures faites hors connexion sont mises en file d'attente puis synchronisées automatiquement au retour du réseau (voir `src/lib/offlineSync.js`).
 - **PWA installable** : `manifest.json` + `sw.js` mettent en cache l'interface.
 - **Backend réel optionnel** : comptes sécurisés (mot de passe haché, session par JWT), données Postgres scopées par utilisateur, messagerie entre commerçants et fournisseurs (rafraîchie automatiquement), annuaire des commerçants pour les fournisseurs.
+- **Import/export de stock (CSV)** : depuis l'onglet Stocks, un commerçant peut importer son inventaire existant (fichier CSV : nom, unité, stock, seuil, prix, catégorie) plutôt que de tout ressaisir à la main, et exporter son stock actuel à tout moment. Un modèle de fichier vide est téléchargeable en un clic.
+- **Abonnement payant (mode gratuit / mode Premium)** : chaque compte démarre avec un **essai gratuit de 7 jours**. Passé ce délai, l'accès à l'application est bloqué tant qu'un paiement de **3 000 FCFA/an** n'est pas enregistré (Wave, Orange Money, MTN Money ou Moov Money). Un commerçant peut aussi payer immédiatement dès l'inscription pour passer en mode Premium sans attendre la fin de l'essai. Voir la section « Abonnement & paiement » ci-dessous pour le détail de ce qui est réellement implémenté.
 
 ---
 
@@ -238,9 +242,22 @@ marketpro-app/
 - **Le backend** (`server/`) est la seule pièce qui connaît `DATABASE_URL`/`DIRECT_URL` (les identifiants Postgres) et `JWT_SECRET`. Il expose une API REST classique (JSON + JWT dans l'en-tête `Authorization`), et applique lui-même les règles d'accès (chaque commerçant ne voit que ses propres données) dans son code plutôt que via des policies Postgres.
 - **Supabase** héberge uniquement la base Postgres — aucune fonctionnalité Supabase (Auth, Realtime, RLS, client JS) n'est utilisée dans cette architecture.
 
+## Abonnement & paiement — ce qui est réellement implémenté
+
+- **Essai gratuit** : `trialEndsAt` est fixé à *inscription + 7 jours* dans `server/src/lib/billing.js`. Tant que cette date n'est pas dépassée, l'accès est libre (mode gratuit).
+- **Blocage automatique** : passé ce délai (et sans paiement), le middleware `server/src/middleware/subscription.js` renvoie une erreur `402 Payment Required` sur toutes les routes de données métier (ventes, stocks, messagerie, etc.). Le frontend intercepte ça et affiche un écran plein écran non contournable demandant le paiement (`SubscriptionLockedScreen` dans `src/App.jsx`) — seule la déconnexion reste possible.
+- **Paiement anticipé** : un commerçant peut payer dès l'inscription (page « Abonnement » dans le menu) sans attendre la fin de l'essai — ça correspond au mode Premium demandé.
+- **⚠️ Le paiement lui-même est simulé.** `POST /api/billing/pay` enregistre immédiatement le paiement comme "complété" et prolonge l'accès d'un an, **sans jamais contacter Wave, Orange Money, MTN Money ou Moov Money**. Il n'existe aujourd'hui aucune vraie intégration avec ces opérateurs — je n'ai pas accès à vos identifiants marchands ni aux API de ces fournisseurs. Une vraie intégration demanderait, pour chacun :
+  1. Un compte marchand chez l'opérateur (Wave for Business, Orange Money API, MTN MoMo API, Moov Money API).
+  2. Rediriger l'utilisateur vers la page/l'application de paiement de l'opérateur (ou déclencher un push USSD) avec le montant et une référence de transaction.
+  3. Un endpoint webhook côté backend que l'opérateur appelle pour confirmer (ou refuser) le paiement — c'est à ce moment-là, et seulement à ce moment-là, qu'il faudrait marquer le paiement "complété" et prolonger l'accès (au lieu de le faire immédiatement comme c'est fait actuellement dans `billing.js`).
+  4. Vérifier la signature/l'authenticité de chaque appel webhook pour éviter qu'un tiers ne débloque un compte sans payer.
+
+  Le modèle de données (`Payment`, `paidUntil`, statut trial/active/expired) est déjà en place pour accueillir cette vraie intégration sans tout refaire — seul le contenu de la route `POST /api/billing/pay` doit être remplacé.
+
 ## Ce qu'il reste pour passer en production
 
-- **Intégrations de paiement réelles** : les badges Wave/Orange Money/MTN/Moov sont visuels ; brancher les vraies API (Wave for Business, Orange Money API, MTN MoMo API) pour encaisser réellement.
+- **Intégrations de paiement réelles** (voir section détaillée ci-dessus) : brancher les vraies API Wave/Orange Money/MTN Money/Moov Money pour la facturation, et Wave for Business / Orange Money API pour l'encaissement des ventes.
 - **SMS réels pour les rappels de dette** : actuellement simulés ; une intégration Africa's Talking ou Twilio enverrait de vrais SMS.
 - **Réinitialisation de mot de passe** : le backend n'a pas de champ e-mail aujourd'hui (identifiant + mot de passe uniquement) ; en ajouter un serait nécessaire pour ce flux.
 - **Messagerie en temps réel** : actuellement en polling (vérification toutes les 4 secondes) plutôt qu'avec des WebSockets, pour rester simple et robuste sur un hébergement gratuit qui peut se mettre en veille.

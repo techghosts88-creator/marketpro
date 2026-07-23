@@ -32,6 +32,14 @@ model Profile {
   categories   String[] @default([])
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
+  // ---- Subscription / billing ----
+  // Every account gets a 7-day free trial starting at signup. After that,
+  // access is locked until a payment is recorded (see Payment below and
+  // src/routes/billing.js) which sets paidUntil roughly one year out.
+  trialEndsAt DateTime  @map("trial_ends_at") @db.Timestamptz(6)
+  paidUntil   DateTime? @map("paid_until") @db.Timestamptz(6)
+
+  payments Payment[]
   products  Product[]
   clients   Client[]
   suppliers Supplier[]
@@ -155,3 +163,24 @@ model Message {
 
   @@map("messages")
 }
+
+// A record of each subscription payment. In this version, `status` is set
+// to 'completed' as soon as the request is made (see src/routes/billing.js)
+// — there is no real Wave/Orange/MTN/Moov integration yet, so this is a
+// placeholder for where a real payment webhook would confirm the charge
+// before marking it completed. Kept as its own table (rather than just
+// fields on Profile) so a full payment history can be shown later.
+model Payment {
+  id        String   @id @default(uuid()) @db.Uuid
+  ownerId   String   @map("owner_id") @db.Uuid
+  owner     Profile  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  amount    Decimal  @default(3000)
+  method    String // 'wave' | 'orange' | 'mtn' | 'moov'
+  status    String   @default("completed") // 'pending' | 'completed' | 'failed'
+  periodStart DateTime @map("period_start") @db.Timestamptz(6)
+  periodEnd   DateTime @map("period_end") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("payments")
+}
+

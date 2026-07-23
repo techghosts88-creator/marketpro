@@ -34,7 +34,12 @@ async function request(path, { method = "GET", body } = {}) {
 
   if (res.status === 204) return null;
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `Erreur ${res.status}`);
+  if (!res.ok) {
+    const err = new Error(data.error || `Erreur ${res.status}`);
+    err.status = res.status;
+    if (data.billing) err.billing = data.billing;
+    throw err;
+  }
   return data;
 }
 
@@ -52,4 +57,7 @@ export const api = {
 
   messages: () => request("/api/messages"),
   sendMessage: (toUserId, text) => request("/api/messages", { method: "POST", body: { toUserId, text } }),
+
+  billingStatus: () => request("/api/billing/status"),
+  pay: (method) => request("/api/billing/pay", { method: "POST", body: { method } }),
 };

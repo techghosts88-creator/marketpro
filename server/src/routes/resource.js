@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
+import { requireActiveSubscription } from "../middleware/subscription.js";
 import { serializeRow, serializeRows } from "../lib/serialize.js";
 
 // Every business table (products, clients, suppliers, sales, purchases,
@@ -11,6 +12,7 @@ export function createResourceRouter(modelName) {
   const router = Router();
   const model = prisma[modelName];
   router.use(requireAuth);
+  router.use(requireActiveSubscription);
 
   router.get("/", async (req, res) => {
     const rows = await model.findMany({ where: { ownerId: req.userId }, orderBy: { createdAt: "desc" } });

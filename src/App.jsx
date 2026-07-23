@@ -5,7 +5,7 @@ import {
   TrendingUp, TrendingDown, AlertTriangle, CheckCircle2,
   MoreHorizontal, Sparkles, Globe2, Volume2, CreditCard, LogOut,
   Lock, User, UserPlus, Eye, EyeOff, Clock, MessageCircle, Store,
-  MapPin, Send, Coins, ArrowLeft, WifiOff, MicOff,
+  MapPin, Send, Coins, ArrowLeft, WifiOff, MicOff, Crown, Upload, Download,
 } from "lucide-react";
 import logoUrl from "./assets/logo.png";
 import { api, isRemoteConfigured, getToken, setToken } from "./lib/apiClient";
@@ -21,6 +21,32 @@ const uid = (() => { let i = 1000; return () => i++; })();
 
 function daysAgoLabelFr(n) { if (n === 0) return "Aujourd'hui"; if (n === 1) return "Hier"; return `Il y a ${n} jours`; }
 function daysAgoLabelEn(n) { if (n === 0) return "Today"; if (n === 1) return "Yesterday"; return `${n} days ago`; }
+
+/* =========================================================================
+   BILLING / SUBSCRIPTION
+   7-day free trial, then 3000 FCFA/year via mobile money. In remote mode the
+   backend computes this (see server/src/lib/billing.js); this mirror is used
+   for local demo mode and to render the same UI shape either way.
+========================================================================= */
+const TRIAL_DAYS = 7;
+const SUBSCRIPTION_PRICE = 3000;
+const SUBSCRIPTION_DAYS = 365;
+
+function trialEndDate(from = new Date()) { const d = new Date(from); d.setDate(d.getDate() + TRIAL_DAYS); return d; }
+function subscriptionEndDate(from = new Date()) { const d = new Date(from); d.setDate(d.getDate() + SUBSCRIPTION_DAYS); return d; }
+
+function computeBillingStatus({ trialEndsAt, paidUntil }) {
+  const now = new Date();
+  const paid = paidUntil ? new Date(paidUntil) : null;
+  if (paid && paid > now) {
+    return { status: "active", trialEndsAt, paidUntil, daysRemaining: Math.max(0, Math.ceil((paid - now) / 86400000)) };
+  }
+  const trial = trialEndsAt ? new Date(trialEndsAt) : null;
+  if (trial && trial > now) {
+    return { status: "trial", trialEndsAt, paidUntil, daysRemaining: Math.max(0, Math.ceil((trial - now) / 86400000)) };
+  }
+  return { status: "expired", trialEndsAt, paidUntil, daysRemaining: 0 };
+}
 
 function isoDateOffset(days) {
   const d = new Date();
@@ -138,7 +164,13 @@ const TRANSLATIONS = {
       depositLabel: "Montant versé maintenant", remainingLabel: "Reste à payer", dueDateLabel: "Échéance du remboursement",
       creditBadge: "Crédit", partialBadge: (v) => `Partiel · reste ${v}`,
     },
-    stocks: { title: "Stocks", subtitleCount: (n) => `${n} produit(s) référencé(s)`, product: "Produit", category: "Catégorie", stock: "Stock", unitPrice: "Prix unitaire", status: "État" },
+    stocks: { title: "Stocks", subtitleCount: (n) => `${n} produit(s) référencé(s)`, product: "Produit", category: "Catégorie", stock: "Stock", unitPrice: "Prix unitaire", status: "État",
+      importButton: "Importer un stock", exportButton: "Exporter", importTitle: "Importer votre stock existant",
+      importInstructions: "Choisissez un fichier CSV avec les colonnes : nom, unité, stock, seuil, prix, catégorie. La première ligne (en-têtes) est ignorée automatiquement.",
+      downloadTemplate: "Télécharger un modèle vide", chooseFile: "Choisir un fichier CSV", importing: "Importation en cours...",
+      importSuccess: (n) => `${n} produit(s) importé(s) ✓`, importError: "Le fichier n'a pas pu être lu. Vérifiez le format CSV.",
+      importPreview: (n) => `${n} ligne(s) détectée(s), prêtes à importer.`, confirmImport: "Confirmer l'import",
+    },
     purchases: { title: "Achats", subtitleCount: (n) => `${n} achat(s) enregistré(s)`, product: "Produit", quantity: "Quantité", supplier: "Fournisseur", amount: "Montant", when: "Quand", empty: "Aucun achat enregistré." },
     clients: { title: "Clients", subtitleCount: (n) => `${n} client(s)`, name: "Nom", phone: "Téléphone", balance: "Solde" },
     suppliers: { title: "Fournisseurs", subtitleCount: (n) => `${n} fournisseur(s)`, name: "Nom", phone: "Téléphone", balanceDue: "Solde dû" },
@@ -178,6 +210,25 @@ const TRANSLATIONS = {
     voice: { listening: "MarketPro écoute", sayOrType: "Dites ou tapez votre commande", understood: "Voici ce que j'ai compris", placeholder: "Ex : J'ai vendu 2 sacs de riz à 50000 francs", examplesTitle: "Vous pouvez dire par exemple :", newCommand: "Nouvelle commande", finish: "Terminer", send: "Envoyer", tapToSpeak: "Appuyez sur le micro pour parler", speakNow: "Parlez maintenant...", notSupported: "La reconnaissance vocale n'est pas prise en charge par ce navigateur. Utilisez Chrome ou tapez votre commande ci-dessous.", micDenied: "Accès au microphone refusé. Vérifiez les autorisations de votre navigateur.", useText: "Utiliser le clavier" },
     toasts: { saleSaved: "Vente enregistrée ✓", purchaseSaved: "Achat enregistré ✓", expenseSaved: "Dépense enregistrée ✓", productAdded: "Produit ajouté ✓", clientAdded: "Client ajouté ✓", supplierAdded: "Fournisseur ajouté ✓" },
     paymentMethods: { especes: "Espèces", wave: "Wave", orange: "Orange Money", mtn: "MTN Money", moov: "Moov Money" },
+    billing: {
+      navLabel: "Abonnement",
+      trialBannerDays: (n) => `Essai gratuit : ${n} jour(s) restant(s)`,
+      trialBannerToday: "Essai gratuit : dernier jour",
+      upgradeButton: "Passer au Premium",
+      title: "Abonnement", subtitle: "Gérez votre abonnement MarketPro",
+      planFree: "Mode gratuit (essai)", planPremium: "Mode Premium",
+      statusTrial: (n) => `Essai gratuit — ${n} jour(s) restant(s)`,
+      statusActive: (date) => `Premium actif jusqu'au ${date}`,
+      statusExpired: "Votre essai est terminé",
+      priceLabel: "3 000 FCFA / an", priceNote: "Facturé une fois par an, sans engagement.",
+      choosePayment: "Choisissez votre moyen de paiement", payNow: "Payer maintenant", processing: "Paiement en cours...",
+      paySuccess: "Paiement enregistré. Bienvenue en mode Premium !",
+      payError: "Le paiement n'a pas pu être enregistré. Réessayez.",
+      simulatedNote: "Démo : le paiement est confirmé immédiatement ici. Une intégration réelle attendrait la confirmation de Wave/Orange/MTN/Moov avant d'activer le compte.",
+      lockedTitle: "Votre période d'essai est terminée",
+      lockedSubtitle: "Passez au mode Premium pour continuer à utiliser MarketPro — vos données sont conservées et vous les retrouverez immédiatement après paiement.",
+      lockedPriceReminder: "3 000 FCFA pour une année complète d'utilisation.",
+    },
   },
 
   en: {
@@ -220,7 +271,13 @@ const TRANSLATIONS = {
       depositLabel: "Amount paid now", remainingLabel: "Remaining balance", dueDateLabel: "Repayment due date",
       creditBadge: "Credit", partialBadge: (v) => `Partial · ${v} left`,
     },
-    stocks: { title: "Inventory", subtitleCount: (n) => `${n} product(s) listed`, product: "Product", category: "Category", stock: "Stock", unitPrice: "Unit price", status: "Status" },
+    stocks: { title: "Inventory", subtitleCount: (n) => `${n} product(s) listed`, product: "Product", category: "Category", stock: "Stock", unitPrice: "Unit price", status: "Status",
+      importButton: "Import stock", exportButton: "Export", importTitle: "Import your existing stock",
+      importInstructions: "Choose a CSV file with columns: name, unit, stock, threshold, price, category. The first (header) row is skipped automatically.",
+      downloadTemplate: "Download a blank template", chooseFile: "Choose a CSV file", importing: "Importing...",
+      importSuccess: (n) => `${n} product(s) imported ✓`, importError: "The file could not be read. Check the CSV format.",
+      importPreview: (n) => `${n} row(s) detected, ready to import.`, confirmImport: "Confirm import",
+    },
     purchases: { title: "Purchases", subtitleCount: (n) => `${n} purchase(s) recorded`, product: "Product", quantity: "Quantity", supplier: "Supplier", amount: "Amount", when: "When", empty: "No purchases recorded yet." },
     clients: { title: "Clients", subtitleCount: (n) => `${n} client(s)`, name: "Name", phone: "Phone", balance: "Balance" },
     suppliers: { title: "Suppliers", subtitleCount: (n) => `${n} supplier(s)`, name: "Name", phone: "Phone", balanceDue: "Balance due" },
@@ -260,6 +317,25 @@ const TRANSLATIONS = {
     voice: { listening: "MarketPro is listening", sayOrType: "Say or type your command", understood: "Here's what I understood", placeholder: "E.g.: I sold 2 bags of rice for 50000 francs", examplesTitle: "You can say for example:", newCommand: "New command", finish: "Finish", send: "Send", tapToSpeak: "Tap the mic to speak", speakNow: "Speak now...", notSupported: "Speech recognition isn't supported by this browser. Use Chrome or type your command below.", micDenied: "Microphone access denied. Check your browser permissions.", useText: "Use keyboard instead" },
     toasts: { saleSaved: "Sale recorded ✓", purchaseSaved: "Purchase recorded ✓", expenseSaved: "Expense recorded ✓", productAdded: "Product added ✓", clientAdded: "Client added ✓", supplierAdded: "Supplier added ✓" },
     paymentMethods: { especes: "Cash", wave: "Wave", orange: "Orange Money", mtn: "MTN Money", moov: "Moov Money" },
+    billing: {
+      navLabel: "Subscription",
+      trialBannerDays: (n) => `Free trial: ${n} day(s) left`,
+      trialBannerToday: "Free trial: last day",
+      upgradeButton: "Upgrade to Premium",
+      title: "Subscription", subtitle: "Manage your MarketPro subscription",
+      planFree: "Free mode (trial)", planPremium: "Premium mode",
+      statusTrial: (n) => `Free trial — ${n} day(s) left`,
+      statusActive: (date) => `Premium active until ${date}`,
+      statusExpired: "Your trial has ended",
+      priceLabel: "3,000 FCFA / year", priceNote: "Billed once a year, no commitment.",
+      choosePayment: "Choose your payment method", payNow: "Pay now", processing: "Processing payment...",
+      paySuccess: "Payment recorded. Welcome to Premium!",
+      payError: "The payment could not be recorded. Please try again.",
+      simulatedNote: "Demo: payment is confirmed immediately here. A real integration would wait for confirmation from Wave/Orange/MTN/Moov before activating the account.",
+      lockedTitle: "Your trial period has ended",
+      lockedSubtitle: "Upgrade to Premium to keep using MarketPro — your data is kept safe and you'll get it back right after payment.",
+      lockedPriceReminder: "3,000 FCFA for a full year of use.",
+    },
   },
 
   wo: { dashboard: { greetingWord: "Nanga def" }, nav: { ventes: "Jaay" } },
@@ -308,6 +384,168 @@ function PaymentBadge({ methodKey, size = "sm" }) {
       <span className={`rounded-full flex items-center justify-center font-bold flex-shrink-0 ${big ? "h-6 w-6 text-[10px]" : "h-4 w-4 text-[8px]"}`} style={{ background: m.color, color: m.text }}>{m.mark}</span>
       {t(`paymentMethods.${m.key}`)}
     </span>
+  );
+}
+
+/* =========================================================================
+   BILLING UI — trial banner, hard lock screen, and the subscription page
+========================================================================= */
+const BILLING_PAYMENT_METHODS = PAYMENT_METHODS.filter((m) => m.key !== "especes");
+
+function PaymentMethodPicker({ value, onChange }) {
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+      {BILLING_PAYMENT_METHODS.map((m) => (
+        <button
+          key={m.key} type="button" onClick={() => onChange(m.key)}
+          className={`flex flex-col items-center gap-2 rounded-xl border py-3.5 text-xs font-semibold transition-colors ${value === m.key ? "border-emerald-600 bg-emerald-50" : "border-slate-900/10 hover:border-slate-900/30"}`}
+        >
+          <span className="h-8 w-8 rounded-full flex items-center justify-center font-bold text-[11px]" style={{ background: m.color, color: m.text }}>{m.mark}</span>
+          {m.key === "orange" ? "Orange Money" : m.key === "mtn" ? "MTN Money" : m.key === "moov" ? "Moov Money" : "Wave"}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function TrialBanner({ billing, onOpenBilling }) {
+  const { t } = useLang();
+  if (!billing || billing.status !== "trial") return null;
+  return (
+    <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-amber-50 border border-amber-200 px-5 py-3.5">
+      <div className="flex items-center gap-2.5 text-sm text-amber-800 font-medium">
+        <Clock size={16} />
+        {billing.daysRemaining <= 0 ? t("billing.trialBannerToday") : t("billing.trialBannerDays", billing.daysRemaining)}
+      </div>
+      <button onClick={onOpenBilling} className="inline-flex items-center gap-1.5 rounded-full bg-amber-600 text-white px-4 py-1.5 text-xs font-semibold hover:bg-amber-500">
+        <Crown size={13} /> {t("billing.upgradeButton")}
+      </button>
+    </div>
+  );
+}
+
+function SubscriptionLockedScreen({ user, onPay, onLogout }) {
+  const { t } = useLang();
+  const [method, setMethod] = useState(null);
+  const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState("");
+  const [done, setDone] = useState(false);
+
+  const pay = async () => {
+    if (!method || processing) return;
+    setProcessing(true); setError("");
+    try { await onPay(method); setDone(true); }
+    catch (e) { setError(t("billing.payError")); }
+    setProcessing(false);
+  };
+
+  if (done) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+        <div className="text-center">
+          <CheckCircle2 size={40} className="text-emerald-600 mx-auto mb-3" />
+          <p className="text-slate-700 font-medium">{t("billing.paySuccess")}</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 sm:p-6" style={{ fontFamily: "'Inter', sans-serif" }}>
+      <div className="w-full max-w-md">
+        <div className="flex flex-col items-center mb-6">
+          <img src={logoUrl} alt="MarketPro" className="h-16 w-16 object-contain mb-2" />
+          <div className="flex items-center gap-1 font-bold text-xl" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Market<span className="text-emerald-700">Pro</span></div>
+        </div>
+        <div className="rounded-3xl border border-slate-900/10 bg-white p-6 sm:p-8 shadow-xl shadow-slate-900/5">
+          <div className="flex justify-center mb-4">
+            <span className="h-14 w-14 rounded-2xl bg-amber-100 flex items-center justify-center"><Lock size={24} className="text-amber-600" /></span>
+          </div>
+          <h2 className="text-lg font-bold text-slate-900 text-center mb-2" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>{t("billing.lockedTitle")}</h2>
+          <p className="text-sm text-slate-500 text-center mb-6">{t("billing.lockedSubtitle")}</p>
+
+          <div className="rounded-2xl bg-emerald-50 border border-emerald-100 p-4 text-center mb-6">
+            <div className="font-mono text-2xl font-bold text-emerald-700">{fmt(SUBSCRIPTION_PRICE)}</div>
+            <div className="text-xs text-slate-500 mt-1">{t("billing.lockedPriceReminder")}</div>
+          </div>
+
+          <p className="text-xs font-medium text-slate-600 mb-2.5">{t("billing.choosePayment")}</p>
+          <PaymentMethodPicker value={method} onChange={setMethod} />
+
+          {error && <p className="text-xs text-rose-600 mt-4">{error}</p>}
+
+          <button
+            type="button" disabled={!method || processing} onClick={pay}
+            className="w-full mt-6 rounded-full bg-emerald-600 text-white py-3 text-sm font-semibold hover:bg-emerald-500 disabled:opacity-50 inline-flex items-center justify-center gap-2"
+          >
+            <Crown size={16} /> {processing ? t("billing.processing") : `${t("billing.payNow")} — ${fmt(SUBSCRIPTION_PRICE)}`}
+          </button>
+          <p className="text-[11px] text-slate-400 text-center mt-4">{t("billing.simulatedNote")}</p>
+
+          <button onClick={onLogout} className="w-full mt-4 flex items-center justify-center gap-2 text-xs font-semibold text-rose-600 py-2 border-t border-slate-100 pt-4">
+            <LogOut size={13} /> {t("common.logout")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BillingView({ user, onPay }) {
+  const { t } = useLang();
+  const billing = user.billing;
+  const [method, setMethod] = useState(null);
+  const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState("");
+  const [justPaid, setJustPaid] = useState(false);
+
+  const pay = async () => {
+    if (!method || processing) return;
+    setProcessing(true); setError("");
+    try { await onPay(method); setJustPaid(true); setMethod(null); }
+    catch (e) { setError(t("billing.payError")); }
+    setProcessing(false);
+  };
+
+  const statusLabel = billing.status === "active"
+    ? t("billing.statusActive", formatDate((billing.paidUntil || "").slice(0, 10)))
+    : billing.status === "trial"
+      ? t("billing.statusTrial", billing.daysRemaining)
+      : t("billing.statusExpired");
+
+  return (
+    <div className="max-w-2xl space-y-6">
+      <PageHeader title={t("billing.title")} subtitle={t("billing.subtitle")} />
+
+      <div className="rounded-2xl border border-slate-900/10 bg-white p-6">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-sm font-semibold text-slate-900">{billing.status === "active" ? t("billing.planPremium") : t("billing.planFree")}</span>
+          {billing.status === "active" ? <Badge tone="green">Premium</Badge> : billing.status === "trial" ? <Badge tone="amber">{t("billing.planFree")}</Badge> : <Badge tone="red">{t("billing.statusExpired")}</Badge>}
+        </div>
+        <p className="text-sm text-slate-500">{statusLabel}</p>
+      </div>
+
+      <div className="rounded-2xl border border-slate-900/10 bg-white p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <div className="font-mono text-xl font-bold text-slate-900">{t("billing.priceLabel")}</div>
+            <div className="text-xs text-slate-500 mt-0.5">{t("billing.priceNote")}</div>
+          </div>
+          <Crown size={22} className="text-amber-500" />
+        </div>
+        <p className="text-xs font-medium text-slate-600 mb-2.5">{t("billing.choosePayment")}</p>
+        <PaymentMethodPicker value={method} onChange={setMethod} />
+        {error && <p className="text-xs text-rose-600 mt-4">{error}</p>}
+        {justPaid && <p className="text-xs text-emerald-700 mt-4 flex items-center gap-1.5"><CheckCircle2 size={14} /> {t("billing.paySuccess")}</p>}
+        <button
+          type="button" disabled={!method || processing} onClick={pay}
+          className="w-full mt-5 rounded-full bg-emerald-600 text-white py-3 text-sm font-semibold hover:bg-emerald-500 disabled:opacity-50 inline-flex items-center justify-center gap-2"
+        >
+          <Crown size={16} /> {processing ? t("billing.processing") : t("billing.payNow")}
+        </button>
+        <p className="text-[11px] text-slate-400 text-center mt-4">{t("billing.simulatedNote")}</p>
+      </div>
+    </div>
   );
 }
 
@@ -406,10 +644,11 @@ function getSeed(key) { if (key === "A") return seedA(); if (key === "B") return
    ACCOUNTS
 ========================================================================= */
 
+const DEMO_PAID_UNTIL = subscriptionEndDate(subscriptionEndDate(subscriptionEndDate())).toISOString(); // ~3 years out
 const INITIAL_ACCOUNTS = [
-  { username: "awa", password: "1234", role: "merchant", boutique: "Boutique Awa", city: "Dakar, Sénégal", avatar: "A", seed: "A" },
-  { username: "moussa", password: "1234", role: "merchant", boutique: "Boutique Moussa", city: "Abidjan, Côte d'Ivoire", avatar: "M", seed: "B" },
-  { username: "sahel", password: "1234", role: "supplier", company: "Grossiste Sahel", city: "Dakar, Sénégal", avatar: "G", categories: ["Alimentation", "Boissons"], phone: "+221 78 456 78 90" },
+  { username: "awa", password: "1234", role: "merchant", boutique: "Boutique Awa", city: "Dakar, Sénégal", avatar: "A", seed: "A", trialEndsAt: DEMO_PAID_UNTIL, paidUntil: DEMO_PAID_UNTIL },
+  { username: "moussa", password: "1234", role: "merchant", boutique: "Boutique Moussa", city: "Abidjan, Côte d'Ivoire", avatar: "M", seed: "B", trialEndsAt: DEMO_PAID_UNTIL, paidUntil: DEMO_PAID_UNTIL },
+  { username: "sahel", password: "1234", role: "supplier", company: "Grossiste Sahel", city: "Dakar, Sénégal", avatar: "G", categories: ["Alimentation", "Boissons"], phone: "+221 78 456 78 90", trialEndsAt: DEMO_PAID_UNTIL, paidUntil: DEMO_PAID_UNTIL },
 ];
 
 /* =========================================================================
@@ -528,6 +767,7 @@ function useMerchantNav() {
     { key: "credits", label: t("nav.credits"), Icon: Coins },
     { key: "messagerie", label: t("nav.messagerie"), Icon: MessageCircle },
     { key: "rapports", label: t("nav.rapports"), Icon: BarChart3 },
+    { key: "abonnement", label: t("billing.navLabel"), Icon: Crown },
     { key: "parametres", label: t("nav.parametres"), Icon: Settings },
   ];
 }
@@ -536,6 +776,7 @@ function useSupplierNav() {
   return [
     { key: "annuaire", label: t("nav.annuaire"), Icon: Store },
     { key: "messagerie", label: t("nav.messagerie"), Icon: MessageCircle },
+    { key: "abonnement", label: t("billing.navLabel"), Icon: Crown },
     { key: "parametres", label: t("nav.parametres"), Icon: Settings },
   ];
 }
@@ -1050,7 +1291,7 @@ function LocalAuthGate() {
 
   const handleRegister = async ({ role, name, city, username, password }) => {
     if (accounts.some((a) => a.username.toLowerCase() === username.toLowerCase())) return { error: t("login.errorUsernameTaken") };
-    const base = { username, password, city, avatar: (name[0] || "M").toUpperCase() };
+    const base = { username, password, city, avatar: (name[0] || "M").toUpperCase(), trialEndsAt: trialEndDate().toISOString(), paidUntil: null };
     const account = role === "merchant"
       ? { ...base, role: "merchant", boutique: name || "Ma boutique", seed: "empty" }
       : { ...base, role: "supplier", company: name || "Mon entreprise", categories: [], phone: "" };
@@ -1059,11 +1300,22 @@ function LocalAuthGate() {
     return {};
   };
 
+  const handlePay = async (method) => {
+    const now = new Date();
+    setAccounts((accs) => accs.map((a) => {
+      if (a.username !== currentUsername) return a;
+      const base = a.paidUntil && new Date(a.paidUntil) > now ? new Date(a.paidUntil) : now;
+      return { ...a, paidUntil: subscriptionEndDate(base).toISOString() };
+    }));
+    return { ok: true, method };
+  };
+
   if (!currentUser) return <LoginScreen onLogin={handleLogin} onRegister={handleRegister} />;
 
-  const shared = { accounts, messages, sendMessage, onLogout: () => setCurrentUsername(null) };
-  if (currentUser.role === "supplier") return <SupplierWorkspace key={currentUser.username} user={currentUser} {...shared} />;
-  return <Workspace key={currentUser.username} user={currentUser} {...shared} />;
+  const userWithBilling = { ...currentUser, billing: computeBillingStatus(currentUser) };
+  const shared = { accounts, messages, sendMessage, onLogout: () => setCurrentUsername(null), onPay: handlePay };
+  if (currentUser.role === "supplier") return <SupplierWorkspace key={currentUser.username} user={userWithBilling} {...shared} />;
+  return <Workspace key={currentUser.username} user={userWithBilling} {...shared} />;
 }
 
 /* ---- Remote mode: real accounts + real Postgres data, via the Express backend ---- */
@@ -1099,8 +1351,10 @@ function RemoteAuthGate() {
 
   // Poll for messages while logged in. Simpler and more resilient than a
   // persistent WebSocket on a free-tier host that can spin down when idle.
+  // Paused once the subscription is expired (the server would 402 anyway),
+  // and resumes automatically once billing status flips back to trial/active.
   useEffect(() => {
-    if (!user) { setMessages([]); return; }
+    if (!user || user.billing?.status === "expired") { setMessages([]); return; }
     let cancelled = false;
     const load = () => api.messages().then((rows) => { if (!cancelled) setMessages(rows); }).catch(() => {});
     load();
@@ -1111,6 +1365,23 @@ function RemoteAuthGate() {
   const sendMessage = async (from, to, text) => {
     setMessages((m) => [...m, { id: newId(), from, to, text }]); // optimistic
     try { await api.sendMessage(to, text); } catch (e) { /* will reconcile on next poll */ }
+  };
+
+  // Refresh billing status periodically so a trial that expires mid-session
+  // (or a payment made in another tab) is reflected without needing to log
+  // out and back in.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    const load = () => api.billingStatus().then((billing) => { if (!cancelled) setUser((u) => (u ? { ...u, billing } : u)); }).catch(() => {});
+    const interval = setInterval(load, 60000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handlePay = async (method) => {
+    const billing = await api.pay(method);
+    setUser((u) => (u ? { ...u, billing } : u));
+    return { ok: true, method };
   };
 
   const handleLogin = async ({ username, password }) => {
@@ -1147,7 +1418,7 @@ function RemoteAuthGate() {
 
   if (!user) return <LoginScreen onLogin={handleLogin} onRegister={handleRegister} />;
 
-  const shared = { accounts, messages, sendMessage, onLogout };
+  const shared = { accounts, messages, sendMessage, onLogout, onPay: handlePay };
   if (user.role === "supplier") return <SupplierWorkspace key={user.id} user={user} {...shared} />;
   return <Workspace key={user.id} user={user} {...shared} />;
 }
@@ -1240,7 +1511,7 @@ function AppShell({ navItems, activeKey, onNavigate, title, headerActions, avata
    MERCHANT WORKSPACE
 ========================================================================= */
 
-function Workspace({ user, onLogout, accounts, messages, sendMessage }) {
+function Workspace({ user, onLogout, onPay, accounts, messages, sendMessage }) {
   const { t, lang, setLang, daysAgoLabel } = useLang();
   const NAV_ITEMS = useMerchantNav();
   const seed = useMemo(() => getSeed(user.seed), []); // eslint-disable-line
@@ -1391,6 +1662,13 @@ function Workspace({ user, onLogout, accounts, messages, sendMessage }) {
     pushToast(t("toasts.productAdded"));
   };
 
+  const importProducts = (rows) => {
+    const withIds = rows.map((r) => ({ id: newId(), ...r }));
+    setProducts((p) => [...p, ...withIds]);
+    withIds.forEach((row) => syncWrite({ type: "create", resource: "products", body: row }));
+    pushToast(t("stocks.importSuccess", withIds.length));
+  };
+
   const applyClient = ({ name, phone }) => {
     const row = { id: newId(), name, phone };
     setClients((c) => [...c, row]);
@@ -1465,6 +1743,10 @@ function Workspace({ user, onLogout, accounts, messages, sendMessage }) {
     { key: "__more__", label: t("bottomNav.more"), Icon: MoreHorizontal },
   ];
 
+  if (user.billing?.status === "expired") {
+    return <SubscriptionLockedScreen user={user} onPay={onPay} onLogout={onLogout} />;
+  }
+
   return (
     <AppShell
       navItems={NAV_ITEMS} activeKey={view} onNavigate={goTo} title={pageTitle}
@@ -1502,9 +1784,10 @@ function Workspace({ user, onLogout, accounts, messages, sendMessage }) {
         </nav>
       }
     >
+      <TrialBanner billing={user.billing} onOpenBilling={() => goTo("abonnement")} />
       {view === "dashboard" && <DashboardView revenueToday={revenueToday} profitToday={profitToday} transactionsToday={transactionsToday} lowStock={lowStock} weekHistory={weekHistory} maxWeek={maxWeek} categoryTotals={categoryTotals} categoryTotal={categoryTotal} recentActivity={recentActivity} debtsWithStatus={debtsWithStatus} onVoice={() => setVoiceOpen(true)} userFirstName={user.boutique.split(" ").slice(-1)[0]} daysAgoLabel={daysAgoLabel} />}
       {view === "ventes" && <VentesView sales={sales} onAdd={() => setModal("sale")} daysAgoLabel={daysAgoLabel} />}
-      {view === "stocks" && <StocksView products={products} onAdd={() => setModal("product")} />}
+      {view === "stocks" && <StocksView products={products} onAdd={() => setModal("product")} onImport={importProducts} />}
       {view === "achats" && <AchatsView purchases={purchases} onAdd={() => setModal("purchase")} daysAgoLabel={daysAgoLabel} />}
       {view === "clients" && <ClientsView clients={clients} debts={openDebts} onAdd={() => setModal("client")} />}
       {view === "fournisseurs" && <FournisseursView suppliers={suppliers} onAdd={() => setModal("supplier")} />}
@@ -1520,6 +1803,7 @@ function Workspace({ user, onLogout, accounts, messages, sendMessage }) {
       )}
       {view === "messagerie" && <MessagingView currentUsername={accountKey(user)} accounts={accounts} messages={messages} sendMessage={sendMessage} initialContact={messagingTarget} />}
       {view === "rapports" && <RapportsView bestSellers={bestSellers} revenueToday={revenueToday} profitToday={profitToday} expensesToday={expensesToday} categoryTotals={categoryTotals} categoryTotal={categoryTotal} />}
+      {view === "abonnement" && <BillingView user={user} onPay={onPay} />}
       {view === "parametres" && <ParametresView user={user} lang={lang} setLang={setLang} />}
 
       <VoiceOverlay open={voiceOpen} onClose={() => setVoiceOpen(false)} onCommand={handleVoiceCommand} />
@@ -1542,7 +1826,7 @@ function Workspace({ user, onLogout, accounts, messages, sendMessage }) {
    SUPPLIER WORKSPACE
 ========================================================================= */
 
-function SupplierWorkspace({ user, onLogout, accounts, messages, sendMessage }) {
+function SupplierWorkspace({ user, onLogout, onPay, accounts, messages, sendMessage }) {
   const { t } = useLang();
   const NAV_ITEMS = useSupplierNav();
   const isOnline = useOnlineStatus();
@@ -1554,6 +1838,10 @@ function SupplierWorkspace({ user, onLogout, accounts, messages, sendMessage }) 
   const goTo = (key) => { setView(key); setSidebarOpen(false); setMoreOpen(false); };
   const goToMessaging = (username) => { setMessagingTarget(username); setView("messagerie"); };
   const pageTitle = NAV_ITEMS.find((n) => n.key === view)?.label || "";
+
+  if (user.billing?.status === "expired") {
+    return <SubscriptionLockedScreen user={user} onPay={onPay} onLogout={onLogout} />;
+  }
 
   return (
     <AppShell
@@ -1581,8 +1869,10 @@ function SupplierWorkspace({ user, onLogout, accounts, messages, sendMessage }) 
         </nav>
       }
     >
+      <TrialBanner billing={user.billing} onOpenBilling={() => goTo("abonnement")} />
       {view === "annuaire" && <DirectoryView accounts={accounts} onContact={goToMessaging} />}
       {view === "messagerie" && <MessagingView currentUsername={accountKey(user)} accounts={accounts} messages={messages} sendMessage={sendMessage} initialContact={messagingTarget} />}
+      {view === "abonnement" && <BillingView user={user} onPay={onPay} />}
       {view === "parametres" && <SupplierSettingsView user={user} />}
     </AppShell>
   );
@@ -1755,11 +2045,148 @@ function VentesView({ sales, onAdd, daysAgoLabel }) {
   );
 }
 
-function StocksView({ products, onAdd }) {
+/* =========================================================================
+   STOCK IMPORT / EXPORT — plain CSV, no external library needed
+========================================================================= */
+const STOCK_CSV_HEADERS = ["nom", "unité", "stock", "seuil", "prix", "catégorie"];
+
+function parseCSV(text) {
+  const rows = [];
+  let row = [];
+  let field = "";
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') { if (text[i + 1] === '"') { field += '"'; i++; } else inQuotes = false; }
+      else field += c;
+    } else if (c === '"') inQuotes = true;
+    else if (c === ",") { row.push(field); field = ""; }
+    else if (c === "\n") { row.push(field); rows.push(row); row = []; field = ""; }
+    else if (c === "\r") { /* skip, \n follows */ }
+    else field += c;
+  }
+  if (field.length || row.length) { row.push(field); rows.push(row); }
+  return rows.filter((r) => r.some((c) => c.trim() !== ""));
+}
+
+function toCSVField(v) {
+  const s = String(v ?? "");
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+function rowsToCSV(rows) { return rows.map((r) => r.map(toCSVField).join(",")).join("\n"); }
+
+function downloadCSV(filename, rows) {
+  const blob = new Blob([rowsToCSV(rows)], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function productsToCSVRows(products) {
+  return [STOCK_CSV_HEADERS, ...products.map((p) => [p.name, p.unit, p.stock, p.threshold, p.price, p.category])];
+}
+
+function csvTextToProducts(text) {
+  const rows = parseCSV(text);
+  const dataRows = rows.length && rows[0].some((c) => /nom|name/i.test(c)) ? rows.slice(1) : rows;
+  return dataRows
+    .map((cols) => ({
+      name: (cols[0] || "").trim(),
+      unit: (cols[1] || "unités").trim(),
+      stock: Number(cols[2]) || 0,
+      threshold: Number(cols[3]) || 0,
+      price: Number(cols[4]) || 0,
+      category: (cols[5] || "Autre").trim(),
+    }))
+    .filter((p) => p.name);
+}
+
+function ImportStockModal({ open, onClose, onImport }) {
   const { t } = useLang();
+  const [fileName, setFileName] = useState("");
+  const [rows, setRows] = useState([]);
+  const [error, setError] = useState("");
+  const fileInputRef = useRef(null);
+
+  useEffect(() => { if (open) { setFileName(""); setRows([]); setError(""); } }, [open]);
+
+  const handleFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setFileName(file.name);
+    setError("");
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = csvTextToProducts(String(reader.result || ""));
+        if (!parsed.length) { setError(t("stocks.importError")); setRows([]); return; }
+        setRows(parsed);
+      } catch (e) {
+        setError(t("stocks.importError")); setRows([]);
+      }
+    };
+    reader.onerror = () => setError(t("stocks.importError"));
+    reader.readAsText(file);
+  };
+
+  const confirm = () => { if (!rows.length) return; onImport(rows); onClose(); };
+
+  return (
+    <Modal open={open} onClose={onClose} title={t("stocks.importTitle")}>
+      <p className="text-xs text-slate-500 mb-4">{t("stocks.importInstructions")}</p>
+      <button
+        type="button"
+        onClick={() => downloadCSV("modele-stock-marketpro.csv", [STOCK_CSV_HEADERS, ["Riz 50kg", "sacs", "20", "10", "25000", "Alimentation"]])}
+        className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 flex items-center gap-1.5 mb-5"
+      >
+        <Download size={13} /> {t("stocks.downloadTemplate")}
+      </button>
+
+      <button
+        type="button"
+        onClick={() => fileInputRef.current?.click()}
+        className="w-full flex flex-col items-center gap-2 rounded-xl border-2 border-dashed border-slate-900/15 hover:border-emerald-600 py-8 text-slate-500 hover:text-emerald-700 transition-colors"
+      >
+        <Upload size={22} />
+        <span className="text-sm font-medium">{fileName || t("stocks.chooseFile")}</span>
+      </button>
+      <input ref={fileInputRef} type="file" accept=".csv,text/csv" onChange={handleFile} className="hidden" />
+
+      {error && <p className="text-xs text-rose-600 mt-4">{error}</p>}
+      {rows.length > 0 && <p className="text-xs text-emerald-700 mt-4 flex items-center gap-1.5"><CheckCircle2 size={14} /> {t("stocks.importPreview", rows.length)}</p>}
+
+      <button
+        type="button" disabled={!rows.length} onClick={confirm}
+        className="w-full mt-5 rounded-full bg-emerald-600 text-white py-3 text-sm font-semibold hover:bg-emerald-500 disabled:opacity-50"
+      >
+        {t("stocks.confirmImport")}
+      </button>
+    </Modal>
+  );
+}
+
+function StocksView({ products, onAdd, onImport }) {
+  const { t } = useLang();
+  const [importOpen, setImportOpen] = useState(false);
   return (
     <div>
-      <PageHeader title={t("stocks.title")} subtitle={t("stocks.subtitleCount", products.length)} action={<PrimaryButton onClick={onAdd}>{t("common.addProduct")}</PrimaryButton>} />
+      <PageHeader
+        title={t("stocks.title")} subtitle={t("stocks.subtitleCount", products.length)}
+        action={
+          <div className="flex flex-wrap gap-2.5">
+            <button onClick={() => downloadCSV(`stock-marketpro-${new Date().toISOString().slice(0, 10)}.csv`, productsToCSVRows(products))} className="inline-flex items-center gap-2 rounded-full border border-slate-900/15 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:border-slate-900/30">
+              <Download size={15} /> {t("stocks.exportButton")}
+            </button>
+            <button onClick={() => setImportOpen(true)} className="inline-flex items-center gap-2 rounded-full border border-slate-900/15 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:border-slate-900/30">
+              <Upload size={15} /> {t("stocks.importButton")}
+            </button>
+            <PrimaryButton onClick={onAdd}>{t("common.addProduct")}</PrimaryButton>
+          </div>
+        }
+      />
       <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-900/10 bg-white">
         <table className="w-full text-sm">
           <thead><tr className="text-left text-xs text-slate-500 border-b border-slate-900/10"><th className="px-5 py-3.5 font-medium">{t("stocks.product")}</th><th className="px-5 py-3.5 font-medium">{t("stocks.category")}</th><th className="px-5 py-3.5 font-medium">{t("stocks.stock")}</th><th className="px-5 py-3.5 font-medium">{t("stocks.unitPrice")}</th><th className="px-5 py-3.5 font-medium">{t("stocks.status")}</th></tr></thead>
@@ -1789,6 +2216,7 @@ function StocksView({ products, onAdd }) {
         ); })}
       </div>
       {!products.length && <EmptyState text="—" />}
+      <ImportStockModal open={importOpen} onClose={() => setImportOpen(false)} onImport={onImport} />
     </div>
   );
 }

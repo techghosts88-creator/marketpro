@@ -4,6 +4,7 @@ import { prisma } from "../lib/prisma.js";
 import { signToken } from "../lib/jwt.js";
 import { requireAuth } from "../middleware/auth.js";
 import { toPublicProfile } from "../lib/serialize.js";
+import { trialEndDate } from "../lib/billing.js";
 
 export const authRouter = Router();
 
@@ -32,6 +33,7 @@ authRouter.post("/register", async (req, res) => {
         phone: "",
         avatar: (name?.[0] || "M").toUpperCase(),
         categories: [],
+        trialEndsAt: trialEndDate(),
       },
     });
 

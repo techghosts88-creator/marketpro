@@ -5,6 +5,7 @@ import cors from "cors";
 import { authRouter } from "./routes/auth.js";
 import { profilesRouter } from "./routes/profiles.js";
 import { messagesRouter } from "./routes/messages.js";
+import { billingRouter } from "./routes/billing.js";
 import { createResourceRouter } from "./routes/resource.js";
 
 const app = express();
@@ -37,6 +38,7 @@ app.get("/health", (_req, res) => res.json({ ok: true }));
 app.use("/api/auth", authRouter);
 app.use("/api/profiles", profilesRouter);
 app.use("/api/messages", messagesRouter);
+app.use("/api/billing", billingRouter);
 app.use("/api/products", createResourceRouter("product"));
 app.use("/api/clients", createResourceRouter("client"));
 app.use("/api/suppliers", createResourceRouter("supplier"));
