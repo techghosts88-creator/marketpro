@@ -1,0 +1,146 @@
+// MarketPro — Prisma schema
+//
+// This schema is the source of truth for table structure and is used to
+// create/migrate the Postgres database behind your Supabase project via
+// `npx prisma db push` (or `prisma migrate dev`).
+//
+// IMPORTANT: Prisma manages table shape only. Three things it cannot express
+// are added separately by running supabase/rls.sql straight after pushing
+// this schema:
+//   1. Foreign keys into Supabase's own `auth.users` table (a schema Prisma
+//      doesn't manage).
+//   2. CHECK constraints (role/status/payment_status enums).
+//   3. Row Level Security policies and the realtime publication for chat.
+//
+// Also important: Prisma Client (generated from this file) runs in Node.js.
+// It is NOT what the React app talks to in the browser — the app uses
+// @supabase/supabase-js (see src/lib/supabaseClient.js), which is safe to
+// ship client-side because it enforces the RLS policies via the user's
+// logged-in session. Prisma here is purely a schema/migration tool (and a
+// convenient way to browse data with `npx prisma studio`).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Profile {
+  id         String   @id @db.Uuid // matches auth.users(id) — set explicitly on signup, not generated here
+  username   String   @unique
+  role       String // 'merchant' | 'supplier' — enforced via CHECK constraint in rls.sql
+  boutique   String?
+  company    String?
+  city       String?
+  phone      String?
+  avatar     String?
+  categories String[] @default([])
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("profiles")
+}
+
+model Product {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId   String   @map("owner_id") @db.Uuid
+  name      String
+  unit      String?
+  stock     Decimal  @default(0)
+  threshold Decimal  @default(0)
+  price     Decimal  @default(0)
+  category  String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("products")
+}
+
+model Client {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId   String   @map("owner_id") @db.Uuid
+  name      String
+  phone     String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("clients")
+}
+
+model Supplier {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId   String   @map("owner_id") @db.Uuid
+  name      String
+  phone     String?
+  balance   Decimal  @default(0)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("suppliers")
+}
+
+model Sale {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId       String    @map("owner_id") @db.Uuid
+  product       String
+  qty           Decimal   @default(1)
+  unit          String?
+  amount        Decimal   @default(0)
+  client        String?
+  category      String?
+  paymentMethod String?   @default("especes") @map("payment_method")
+  paymentStatus String    @default("paid") @map("payment_status") // 'paid' | 'credit' | 'partial'
+  amountPaid    Decimal   @default(0) @map("amount_paid")
+  amountDue     Decimal   @default(0) @map("amount_due")
+  dueDate       DateTime? @map("due_date") @db.Date
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("sales")
+}
+
+model Purchase {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId   String   @map("owner_id") @db.Uuid
+  product   String
+  qty       Decimal  @default(1)
+  unit      String?
+  amount    Decimal  @default(0)
+  supplier  String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("purchases")
+}
+
+model Expense {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId   String   @map("owner_id") @db.Uuid
+  label     String
+  amount    Decimal  @default(0)
+  category  String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("expenses")
+}
+
+model Debt {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId    String   @map("owner_id") @db.Uuid
+  clientName String   @map("client_name")
+  amount     Decimal  @default(0)
+  dueDate    DateTime @map("due_date") @db.Date
+  status     String   @default("ouvert") // 'ouvert' | 'reglé'
+  reminders  Json     @default("[]")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("debts")
+}
+
+model Message {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  fromUser  String   @map("from_user") @db.Uuid
+  toUser    String   @map("to_user") @db.Uuid
+  text      String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("messages")
+}
