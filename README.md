@@ -55,6 +55,7 @@ JWT_SECRET=...         # une longue chaîne aléatoire, ex: openssl rand -base64
 CORS_ORIGIN=http://localhost:5173
 PORT=4000
 ANTHROPIC_API_KEY=...  # optionnel — active la vraie compréhension IA des commandes vocales (console.anthropic.com)
+SUPER_ADMIN_USERNAME=... # optionnel — l'identifiant qui deviendra automatiquement super admin (voir plus bas)
 ```
 
 Créez les tables puis démarrez le serveur :
@@ -65,7 +66,7 @@ npm run dev
 
 Le backend tourne sur `http://localhost:4000`. Testez-le : `curl http://localhost:4000/health` doit répondre `{"ok":true}`.
 
-> **Si vous aviez déjà déployé une version précédente** : le schéma a changé (ajout des champs d'abonnement sur `profiles` et de la table `payments`). Relancez `npm run db:push` (en local ou depuis le Shell Render du service backend) pour mettre à jour votre base existante — vos données actuelles sont conservées, seules les nouvelles colonnes/table sont ajoutées.
+> **Si vous aviez déjà déployé une version précédente** : le schéma a de nouveau changé (champ `isSuperAdmin` et `photoUrl`, nouvelles tables `orders`/`order_items`, en plus des champs d'abonnement précédents). Relancez `npm run db:push` (en local ou depuis le Shell Render du service backend) pour mettre à jour votre base existante — vos données actuelles sont conservées, seules les nouvelles colonnes/tables sont ajoutées.
 
 #### 3. Lancer le frontend en local, connecté au backend
 
@@ -107,6 +108,10 @@ En mode backend réel, créez vos propres comptes depuis l'écran « Créer un c
 - **Backend réel optionnel** : comptes sécurisés (mot de passe haché, session par JWT), données Postgres scopées par utilisateur, messagerie entre commerçants et fournisseurs (rafraîchie automatiquement), annuaire des commerçants pour les fournisseurs.
 - **Import/export de stock (CSV)** : depuis l'onglet Stocks, un commerçant peut importer son inventaire existant (fichier CSV : nom, unité, stock, seuil, prix, catégorie) plutôt que de tout ressaisir à la main, et exporter son stock actuel à tout moment. Un modèle de fichier vide est téléchargeable en un clic.
 - **Abonnement payant (mode gratuit / mode Premium)** : chaque compte démarre avec un **essai gratuit de 7 jours**. Passé ce délai, l'accès à l'application est bloqué tant qu'un paiement de **3 000 FCFA/an** n'est pas enregistré (Wave, Orange Money, MTN Money ou Moov Money). Un commerçant peut aussi payer immédiatement dès l'inscription pour passer en mode Premium sans attendre la fin de l'essai. Voir la section « Abonnement & paiement » ci-dessous pour le détail de ce qui est réellement implémenté.
+- **Compte super admin** : le compte dont l'identifiant correspond à `SUPER_ADMIN_USERNAME` (variable d'environnement du backend) obtient automatiquement un onglet « Administration » pour lister tous les utilisateurs, réinitialiser un mot de passe, ou supprimer un compte.
+- **Contacter le support** : depuis Paramètres, chaque commerçant/fournisseur peut envoyer un message qui arrive directement dans la messagerie du super admin (réutilise le système de messagerie existant, sans route dédiée).
+- **Photo des articles** : chaque produit peut avoir une photo (lien URL, affichée avec repli automatique si le lien est cassé). L'import CSV en masse accepte une colonne « photo » avec un lien par produit.
+- **Boutique en ligne publique** : chaque commerçant dispose d'un lien de boutique (`/store/son-identifiant`, visible dans « Ma boutique en ligne ») à partager avec ses clients. Sans compte MarketPro, un client peut y composer un panier, indiquer son numéro de téléphone, et valider sa commande — celle-ci arrive alors dans l'onglet « Commandes » du commerçant, et le stock est automatiquement décrémenté au moment de la validation (transaction atomique côté serveur pour éviter la survente).
 
 ---
 
@@ -257,7 +262,25 @@ marketpro-app/
 
   Le modèle de données (`Payment`, `paidUntil`, statut trial/active/expired) est déjà en place pour accueillir cette vraie intégration sans tout refaire — seul le contenu de la route `POST /api/billing/pay` doit être remplacé.
 
-## Ce qu'il reste pour passer en production
+## Devenir super admin
+
+1. Sur le backend déployé (ou en local), définissez `SUPER_ADMIN_USERNAME` avec l'identifiant que vous comptez utiliser (ex. `SUPER_ADMIN_USERNAME=djakarya`).
+2. Créez un compte normal (commerçant ou fournisseur, peu importe) avec exactement cet identifiant depuis l'écran « Créer un compte ».
+3. À la connexion, ce compte reçoit automatiquement le statut super admin — un onglet « Administration » apparaît dans son menu, permettant de lister tous les utilisateurs, réinitialiser un mot de passe, ou supprimer un compte (sauf le vôtre).
+
+Vous pouvez aussi promouvoir un compte existant : changez `SUPER_ADMIN_USERNAME` pour correspondre à son identifiant, puis reconnectez ce compte (ou rechargez la page si la session est déjà active).
+
+## Boutique en ligne publique
+
+Chaque commerçant trouve son lien de boutique dans l'onglet **Ma boutique en ligne** (ex. `https://votre-frontend.onrender.com/store/son-identifiant`). C'est une page publique, sans connexion requise :
+
+1. Un client ouvre le lien, compose son panier, indique son numéro de téléphone (obligatoire) et valide.
+2. La commande est créée côté serveur dans une transaction qui vérifie le stock disponible et le décrémente immédiatement — impossible de survendre même avec plusieurs clients simultanés.
+3. Le commerçant retrouve la commande dans son onglet **Commandes**, avec le détail des articles, le total, et le téléphone du client pour le contacter.
+
+Cette fonctionnalité nécessite un backend configuré (`VITE_API_URL` renseigné) — en mode démo local, les onglets « Commandes » et « Ma boutique en ligne » sont masqués puisqu'il n'y a pas de serveur pour héberger un lien public.
+
+
 
 - **Intégrations de paiement réelles** (voir section détaillée ci-dessus) : brancher les vraies API Wave/Orange Money/MTN Money/Moov Money pour la facturation, et Wave for Business / Orange Money API pour l'encaissement des ventes.
 - **SMS réels pour les rappels de dette** : actuellement simulés ; une intégration Africa's Talking ou Twilio enverrait de vrais SMS.

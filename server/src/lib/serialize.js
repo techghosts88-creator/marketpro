@@ -11,6 +11,7 @@ export function toPublicProfile(p) {
     phone: p.phone,
     avatar: p.avatar,
     categories: p.categories || [],
+    isSuperAdmin: !!p.isSuperAdmin,
     billing: computeBillingStatus(p),
   };
 }

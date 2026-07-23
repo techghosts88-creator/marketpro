@@ -62,4 +62,18 @@ export const api = {
   pay: (method) => request("/api/billing/pay", { method: "POST", body: { method } }),
 
   parseVoice: (text, context) => request("/api/voice/parse", { method: "POST", body: { text, ...context } }),
+
+  adminUsers: () => request("/api/admin/users"),
+  adminDeleteUser: (id) => request(`/api/admin/users/${id}`, { method: "DELETE" }),
+  adminResetPassword: (id, newPassword) => request(`/api/admin/users/${id}/reset-password`, { method: "POST", body: { newPassword } }),
+
+  orders: () => request("/api/orders"),
+  updateOrderStatus: (id, status) => request(`/api/orders/${id}`, { method: "PATCH", body: { status } }),
+
+  // Public storefront — no auth needed, but reusing `request()` is fine
+  // since it simply omits the Authorization header when no token exists.
+  getStore: (username) => request(`/api/store/${encodeURIComponent(username)}`),
+  placeOrder: (username, payload) => request(`/api/store/${encodeURIComponent(username)}/order`, { method: "POST", body: payload }),
 };
+
+export { API_URL };

@@ -30,6 +30,7 @@ model Profile {
   phone        String?
   avatar       String?
   categories   String[] @default([])
+  isSuperAdmin Boolean  @default(false) @map("is_super_admin")
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   // ---- Subscription / billing ----
@@ -40,6 +41,7 @@ model Profile {
   paidUntil   DateTime? @map("paid_until") @db.Timestamptz(6)
 
   payments Payment[]
+  orders   Order[]
   products  Product[]
   clients   Client[]
   suppliers Supplier[]
@@ -64,7 +66,10 @@ model Product {
   threshold Decimal  @default(0)
   price     Decimal  @default(0)
   category  String?
+  photoUrl  String?  @map("photo_url")
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  orderItems OrderItem[]
 
   @@map("products")
 }
@@ -182,5 +187,36 @@ model Payment {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@map("payments")
+}
+
+// An order placed by a customer through a merchant's public storefront
+// (see server/src/routes/store.js — no MarketPro account needed to order).
+// Stock is decremented at order-creation time, matching "l'article est
+// soustrait du stock dès que le client valide sa commande".
+model Order {
+  id            String      @id @default(uuid()) @db.Uuid
+  ownerId       String      @map("owner_id") @db.Uuid
+  owner         Profile     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  customerPhone String      @map("customer_phone")
+  customerName  String?     @map("customer_name")
+  status        String      @default("nouvelle") // 'nouvelle' | 'traitee' | 'annulee'
+  total         Decimal     @default(0)
+  items         OrderItem[]
+  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id          String   @id @default(uuid()) @db.Uuid
+  orderId     String   @map("order_id") @db.Uuid
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   String?  @map("product_id") @db.Uuid
+  product     Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productName String   @map("product_name")
+  qty         Decimal  @default(1)
+  unitPrice   Decimal  @default(0) @map("unit_price")
+
+  @@map("order_items")
 }
 

@@ -6,7 +6,8 @@ import {
   MoreHorizontal, Sparkles, Globe2, Volume2, CreditCard, LogOut,
   Lock, User, UserPlus, Eye, EyeOff, Clock, MessageCircle, Store,
   MapPin, Send, Coins, ArrowLeft, WifiOff, MicOff, Crown, Upload, Download,
-  ShieldCheck, LineChart, ClipboardCheck,
+  ShieldCheck, LineChart, ClipboardCheck, ShieldAlert, Trash2, KeyRound,
+  ClipboardList, ShoppingBag, ImageOff, Link2, Minus, LifeBuoy,
 } from "lucide-react";
 import logoUrl from "./assets/logo.png";
 import { api, isRemoteConfigured, getToken, setToken } from "./lib/apiClient";
@@ -132,7 +133,7 @@ function useOnlineStatus() {
 
 const TRANSLATIONS = {
   fr: {
-    nav: { dashboard: "Tableau de bord", ventes: "Ventes", stocks: "Stocks", achats: "Achats", clients: "Clients", fournisseurs: "Fournisseurs", depenses: "Dépenses", paiements: "Paiements", credits: "Crédits & Dettes", messagerie: "Messagerie", rapports: "Rapports", parametres: "Paramètres", annuaire: "Annuaire" },
+    nav: { dashboard: "Tableau de bord", ventes: "Ventes", stocks: "Stocks", achats: "Achats", clients: "Clients", fournisseurs: "Fournisseurs", depenses: "Dépenses", paiements: "Paiements", credits: "Crédits & Dettes", messagerie: "Messagerie", rapports: "Rapports", parametres: "Paramètres", annuaire: "Annuaire", commandes: "Commandes", boutiqueLigne: "Ma boutique en ligne", admin: "Administration" },
     bottomNav: { home: "Accueil", talk: "Parler", more: "Plus" },
     common: {
       newSale: "Nouvelle vente", newPurchase: "Nouvel achat", newExpense: "Nouvelle dépense",
@@ -182,10 +183,11 @@ const TRANSLATIONS = {
     },
     stocks: { title: "Stocks", subtitleCount: (n) => `${n} produit(s) référencé(s)`, product: "Produit", category: "Catégorie", stock: "Stock", unitPrice: "Prix unitaire", status: "État",
       importButton: "Importer un stock", exportButton: "Exporter", importTitle: "Importer votre stock existant",
-      importInstructions: "Choisissez un fichier CSV avec les colonnes : nom, unité, stock, seuil, prix, catégorie. La première ligne (en-têtes) est ignorée automatiquement.",
+      importInstructions: "Choisissez un fichier CSV avec les colonnes : nom, unité, stock, seuil, prix, catégorie, photo (lien vers l'image, optionnel). La première ligne (en-têtes) est ignorée automatiquement.",
       downloadTemplate: "Télécharger un modèle vide", chooseFile: "Choisir un fichier CSV", importing: "Importation en cours...",
       importSuccess: (n) => `${n} produit(s) importé(s) ✓`, importError: "Le fichier n'a pas pu être lu. Vérifiez le format CSV.",
       importPreview: (n) => `${n} ligne(s) détectée(s), prêtes à importer.`, confirmImport: "Confirmer l'import",
+      photo: "Photo", photoUrlLabel: "Lien de la photo (URL)", photoUrlHint: "Collez un lien vers une image (ex. depuis votre galerie en ligne). L'import en masse charge la photo depuis la colonne « photo » du fichier CSV.",
     },
     purchases: { title: "Achats", subtitleCount: (n) => `${n} achat(s) enregistré(s)`, product: "Produit", quantity: "Quantité", supplier: "Fournisseur", amount: "Montant", when: "Quand", empty: "Aucun achat enregistré." },
     clients: { title: "Clients", subtitleCount: (n) => `${n} client(s)`, name: "Nom", phone: "Téléphone", balance: "Solde" },
@@ -245,10 +247,43 @@ const TRANSLATIONS = {
       lockedSubtitle: "Passez au mode Premium pour continuer à utiliser MarketPro — vos données sont conservées et vous les retrouverez immédiatement après paiement.",
       lockedPriceReminder: "3 000 FCFA pour une année complète d'utilisation.",
     },
+    admin: {
+      title: "Administration", subtitle: "Gérez les utilisateurs de MarketPro",
+      usersCount: (n) => `${n} utilisateur(s)`, username: "Identifiant", type: "Type", shop: "Boutique/Entreprise", city: "Ville", joined: "Inscrit le", status: "Statut",
+      youBadge: "Vous", adminBadge: "Admin",
+      resetPassword: "Réinitialiser le mot de passe", deleteUser: "Supprimer",
+      confirmDelete: (name) => `Supprimer définitivement le compte de ${name} ? Cette action est irréversible.`,
+      confirmReset: (name) => `Générer un nouveau mot de passe temporaire pour ${name} ?`,
+      newPasswordTitle: "Nouveau mot de passe temporaire", newPasswordHint: "Communiquez ce mot de passe à l'utilisateur — il ne sera plus jamais affiché.",
+      deleteSuccess: "Compte supprimé ✓", resetSuccess: "Mot de passe réinitialisé ✓",
+      cannotDeleteSelf: "Vous ne pouvez pas supprimer votre propre compte.",
+    },
+    orders: {
+      title: "Commandes", subtitle: "Commandes reçues depuis votre boutique en ligne",
+      subtitleCount: (n) => `${n} commande(s)`, empty: "Aucune commande pour l'instant.",
+      customer: "Client", phone: "Téléphone", items: "Articles", total: "Total", status: "Statut", when: "Quand",
+      statusNew: "Nouvelle", statusDone: "Traitée", statusCancelled: "Annulée",
+      markDone: "Marquer traitée", markCancelled: "Annuler",
+    },
+    store: {
+      navSubtitle: "Partagez ce lien avec vos clients pour qu'ils commandent en ligne",
+      yourLink: "Lien de votre boutique en ligne", copyLink: "Copier le lien", linkCopied: "Lien copié ✓", openStore: "Voir ma boutique",
+      requiresBackend: "Cette fonctionnalité nécessite un backend configuré (voir le README).",
+      title: "Boutique", cart: "Panier", addToCart: "Ajouter", emptyCart: "Votre panier est vide.",
+      yourPhone: "Votre numéro de téléphone", yourName: "Votre nom (optionnel)", placeOrder: "Valider la commande",
+      phoneRequired: "Un numéro de téléphone est requis pour valider la commande.",
+      orderSuccess: "Commande envoyée ! Le commerçant vous contactera au numéro indiqué.",
+      orderError: "La commande n'a pas pu être envoyée. Réessayez.",
+      outOfStock: "Rupture de stock", storeNotFound: "Cette boutique est introuvable ou n'a pas de produits disponibles pour le moment.",
+      qty: "Qté", subtotal: "Sous-total", poweredBy: "Propulsé par MarketPro",
+    },
+    support: {
+      contactButton: "Contacter le support", sentToAdmin: "Votre message a été envoyé au support ✓",
+    },
   },
 
   en: {
-    nav: { dashboard: "Dashboard", ventes: "Sales", stocks: "Inventory", achats: "Purchases", clients: "Clients", fournisseurs: "Suppliers", depenses: "Expenses", paiements: "Payments", credits: "Credits & Debts", messagerie: "Messages", rapports: "Reports", parametres: "Settings", annuaire: "Directory" },
+    nav: { dashboard: "Dashboard", ventes: "Sales", stocks: "Inventory", achats: "Purchases", clients: "Clients", fournisseurs: "Suppliers", depenses: "Expenses", paiements: "Payments", credits: "Credits & Debts", messagerie: "Messages", rapports: "Reports", parametres: "Settings", annuaire: "Directory", commandes: "Orders", boutiqueLigne: "My online store", admin: "Admin" },
     bottomNav: { home: "Home", talk: "Talk", more: "More" },
     common: {
       newSale: "New sale", newPurchase: "New purchase", newExpense: "New expense",
@@ -298,10 +333,11 @@ const TRANSLATIONS = {
     },
     stocks: { title: "Inventory", subtitleCount: (n) => `${n} product(s) listed`, product: "Product", category: "Category", stock: "Stock", unitPrice: "Unit price", status: "Status",
       importButton: "Import stock", exportButton: "Export", importTitle: "Import your existing stock",
-      importInstructions: "Choose a CSV file with columns: name, unit, stock, threshold, price, category. The first (header) row is skipped automatically.",
+      importInstructions: "Choose a CSV file with columns: name, unit, stock, threshold, price, category, photo (image link, optional). The first (header) row is skipped automatically.",
       downloadTemplate: "Download a blank template", chooseFile: "Choose a CSV file", importing: "Importing...",
       importSuccess: (n) => `${n} product(s) imported ✓`, importError: "The file could not be read. Check the CSV format.",
       importPreview: (n) => `${n} row(s) detected, ready to import.`, confirmImport: "Confirm import",
+      photo: "Photo", photoUrlLabel: "Photo link (URL)", photoUrlHint: "Paste a link to an image (e.g. from your online gallery). Bulk import loads the photo from the CSV's \"photo\" column.",
     },
     purchases: { title: "Purchases", subtitleCount: (n) => `${n} purchase(s) recorded`, product: "Product", quantity: "Quantity", supplier: "Supplier", amount: "Amount", when: "When", empty: "No purchases recorded yet." },
     clients: { title: "Clients", subtitleCount: (n) => `${n} client(s)`, name: "Name", phone: "Phone", balance: "Balance" },
@@ -360,6 +396,39 @@ const TRANSLATIONS = {
       lockedTitle: "Your trial period has ended",
       lockedSubtitle: "Upgrade to Premium to keep using MarketPro — your data is kept safe and you'll get it back right after payment.",
       lockedPriceReminder: "3,000 FCFA for a full year of use.",
+    },
+    admin: {
+      title: "Admin", subtitle: "Manage MarketPro users",
+      usersCount: (n) => `${n} user(s)`, username: "Username", type: "Type", shop: "Shop/Company", city: "City", joined: "Joined", status: "Status",
+      youBadge: "You", adminBadge: "Admin",
+      resetPassword: "Reset password", deleteUser: "Delete",
+      confirmDelete: (name) => `Permanently delete ${name}'s account? This cannot be undone.`,
+      confirmReset: (name) => `Generate a new temporary password for ${name}?`,
+      newPasswordTitle: "New temporary password", newPasswordHint: "Share this password with the user — it will never be shown again.",
+      deleteSuccess: "Account deleted ✓", resetSuccess: "Password reset ✓",
+      cannotDeleteSelf: "You cannot delete your own account.",
+    },
+    orders: {
+      title: "Orders", subtitle: "Orders received from your online store",
+      subtitleCount: (n) => `${n} order(s)`, empty: "No orders yet.",
+      customer: "Customer", phone: "Phone", items: "Items", total: "Total", status: "Status", when: "When",
+      statusNew: "New", statusDone: "Done", statusCancelled: "Cancelled",
+      markDone: "Mark done", markCancelled: "Cancel",
+    },
+    store: {
+      navSubtitle: "Share this link with your customers so they can order online",
+      yourLink: "Your online store link", copyLink: "Copy link", linkCopied: "Link copied ✓", openStore: "View my store",
+      requiresBackend: "This feature requires a configured backend (see README).",
+      title: "Store", cart: "Cart", addToCart: "Add", emptyCart: "Your cart is empty.",
+      yourPhone: "Your phone number", yourName: "Your name (optional)", placeOrder: "Place order",
+      phoneRequired: "A phone number is required to place an order.",
+      orderSuccess: "Order sent! The merchant will contact you at the number provided.",
+      orderError: "The order could not be sent. Please try again.",
+      outOfStock: "Out of stock", storeNotFound: "This store could not be found or has no products available right now.",
+      qty: "Qty", subtotal: "Subtotal", poweredBy: "Powered by MarketPro",
+    },
+    support: {
+      contactButton: "Contact support", sentToAdmin: "Your message was sent to support ✓",
     },
   },
 
@@ -778,9 +847,9 @@ function parseVoiceCommand(raw, ctx) {
    NAV
 ========================================================================= */
 
-function useMerchantNav() {
+function useMerchantNav(isSuperAdmin) {
   const { t } = useLang();
-  return [
+  const items = [
     { key: "dashboard", label: t("nav.dashboard"), Icon: LayoutDashboard },
     { key: "ventes", label: t("nav.ventes"), Icon: ShoppingCart },
     { key: "stocks", label: t("nav.stocks"), Icon: Package },
@@ -793,17 +862,25 @@ function useMerchantNav() {
     { key: "messagerie", label: t("nav.messagerie"), Icon: MessageCircle },
     { key: "rapports", label: t("nav.rapports"), Icon: BarChart3 },
     { key: "abonnement", label: t("billing.navLabel"), Icon: Crown },
-    { key: "parametres", label: t("nav.parametres"), Icon: Settings },
   ];
+  if (isRemoteConfigured) {
+    items.push({ key: "commandes", label: t("nav.commandes"), Icon: ClipboardList });
+    items.push({ key: "boutiqueline", label: t("nav.boutiqueLigne"), Icon: ShoppingBag });
+  }
+  if (isSuperAdmin) items.push({ key: "admin", label: t("nav.admin"), Icon: ShieldAlert });
+  items.push({ key: "parametres", label: t("nav.parametres"), Icon: Settings });
+  return items;
 }
-function useSupplierNav() {
+function useSupplierNav(isSuperAdmin) {
   const { t } = useLang();
-  return [
+  const items = [
     { key: "annuaire", label: t("nav.annuaire"), Icon: Store },
     { key: "messagerie", label: t("nav.messagerie"), Icon: MessageCircle },
     { key: "abonnement", label: t("billing.navLabel"), Icon: Crown },
-    { key: "parametres", label: t("nav.parametres"), Icon: Settings },
   ];
+  if (isSuperAdmin) items.push({ key: "admin", label: t("nav.admin"), Icon: ShieldAlert });
+  items.push({ key: "parametres", label: t("nav.parametres"), Icon: Settings });
+  return items;
 }
 
 /* =========================================================================
@@ -1372,7 +1449,161 @@ function DirectoryView({ accounts, onContact }) {
    TOP-LEVEL APP
 ========================================================================= */
 
+/* =========================================================================
+   PUBLIC STOREFRONT — no login, no LangProvider (plain French UI).
+   Reached at /store/:username, shared by the merchant from "Ma boutique en
+   ligne". Placing an order calls the public, unauthenticated backend route
+   (server/src/routes/store.js), which validates stock and decrements it
+   atomically before the merchant ever sees the order.
+========================================================================= */
+
+function StorefrontPage({ username }) {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState("");
+  const [cart, setCart] = useState({}); // productId -> qty
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [phone, setPhone] = useState("");
+  const [customerName, setCustomerName] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [orderDone, setOrderDone] = useState(false);
+  const [orderError, setOrderError] = useState("");
+
+  useEffect(() => {
+    if (!isRemoteConfigured) return;
+    api.getStore(username).then(setData).catch((e) => setError(e.message));
+  }, [username]);
+
+  const setQty = (productId, qty) => setCart((c) => { const next = { ...c }; if (qty <= 0) delete next[productId]; else next[productId] = qty; return next; });
+
+  const cartItems = data ? Object.entries(cart).map(([id, qty]) => ({ product: data.products.find((p) => p.id === id), qty })).filter((i) => i.product) : [];
+  const cartCount = cartItems.reduce((s, i) => s + i.qty, 0);
+  const subtotal = cartItems.reduce((s, i) => s + i.product.price * i.qty, 0);
+
+  const submitOrder = async () => {
+    if (!phone.trim() || submitting) { if (!phone.trim()) setOrderError("Un numéro de téléphone est requis pour valider la commande."); return; }
+    setSubmitting(true); setOrderError("");
+    try {
+      await api.placeOrder(username, { phone: phone.trim(), customerName: customerName.trim() || undefined, items: cartItems.map((i) => ({ productId: i.product.id, qty: i.qty })) });
+      setOrderDone(true);
+    } catch (e) {
+      setOrderError(e.message || "La commande n'a pas pu être envoyée. Réessayez.");
+    }
+    setSubmitting(false);
+  };
+
+  if (!isRemoteConfigured) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6" style={{ fontFamily: "'Inter', sans-serif" }}>
+        <div className="text-center max-w-sm">
+          <ShieldAlert size={28} className="text-amber-600 mx-auto mb-3" />
+          <p className="text-sm text-slate-600">Cette boutique nécessite un backend configuré pour fonctionner.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (orderDone) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6" style={{ fontFamily: "'Inter', sans-serif" }}>
+        <div className="text-center max-w-sm">
+          <span className="h-16 w-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4"><CheckCircle2 size={28} className="text-emerald-600" /></span>
+          <h2 className="font-bold text-lg text-slate-900 mb-2" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Commande envoyée !</h2>
+          <p className="text-sm text-slate-500">Le commerçant vous contactera au numéro indiqué pour confirmer la livraison ou le retrait.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || (data && !data.products?.length)) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 text-center" style={{ fontFamily: "'Inter', sans-serif" }}>
+        <p className="text-sm text-slate-500 max-w-sm">Cette boutique est introuvable ou n'a pas de produits disponibles pour le moment.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-50 pb-24" style={{ fontFamily: "'Inter', sans-serif" }}>
+      <header className="bg-white border-b border-slate-900/10 px-4 sm:px-8 py-5">
+        <div className="max-w-3xl mx-auto flex items-center gap-3">
+          <img src={logoUrl} alt="" className="h-10 w-10 object-contain flex-shrink-0" />
+          <div className="min-w-0">
+            <h1 className="font-bold text-lg text-slate-900 truncate" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>{data?.boutique || "Boutique"}</h1>
+            <p className="text-xs text-slate-500">{data?.city || " "}</p>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-3xl mx-auto px-4 sm:px-8 py-6">
+        {!data ? (
+          <div className="flex justify-center py-20"><div className="h-9 w-9 rounded-full border-2 border-emerald-600 border-t-transparent animate-spin" /></div>
+        ) : (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {data.products.map((p) => {
+              const qty = cart[p.id] || 0;
+              return (
+                <div key={p.id} className="rounded-2xl border border-slate-900/10 bg-white overflow-hidden flex flex-col">
+                  <div className="h-36 bg-slate-100 flex items-center justify-center overflow-hidden">
+                    {p.photoUrl ? <img src={p.photoUrl} alt={p.name} className="h-full w-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} /> : <ImageOff size={24} className="text-slate-300" />}
+                  </div>
+                  <div className="p-4 flex-1 flex flex-col">
+                    <div className="font-semibold text-sm text-slate-900 mb-1">{p.name}</div>
+                    <div className="font-mono text-sm text-emerald-700 mb-3">{fmt(p.price)}</div>
+                    <div className="mt-auto flex items-center justify-between gap-2">
+                      {qty === 0 ? (
+                        <button onClick={() => setQty(p.id, 1)} className="w-full rounded-full bg-emerald-600 text-white py-2 text-xs font-semibold hover:bg-emerald-500">Ajouter</button>
+                      ) : (
+                        <div className="w-full flex items-center justify-between rounded-full border border-slate-900/15 px-1 py-1">
+                          <button onClick={() => setQty(p.id, qty - 1)} className="h-7 w-7 rounded-full flex items-center justify-center text-slate-600 hover:bg-slate-100"><Minus size={13} /></button>
+                          <span className="text-sm font-semibold text-slate-900">{qty}</span>
+                          <button onClick={() => setQty(p.id, Math.min(p.stock, qty + 1))} className="h-7 w-7 rounded-full flex items-center justify-center text-slate-600 hover:bg-slate-100"><Plus size={13} /></button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </main>
+
+      {cartCount > 0 && !checkoutOpen && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-900/10 p-4">
+          <div className="max-w-3xl mx-auto flex items-center justify-between gap-4">
+            <div className="text-sm"><span className="font-semibold text-slate-900">{cartCount} article(s)</span><span className="text-slate-400"> · </span><span className="font-mono text-emerald-700">{fmt(subtotal)}</span></div>
+            <button onClick={() => setCheckoutOpen(true)} className="inline-flex items-center gap-2 rounded-full bg-emerald-600 text-white px-5 py-2.5 text-sm font-semibold hover:bg-emerald-500"><ShoppingBag size={15} /> Commander</button>
+          </div>
+        </div>
+      )}
+
+      <Modal open={checkoutOpen} onClose={() => setCheckoutOpen(false)} title="Finaliser la commande">
+        <div className="space-y-2 mb-5">
+          {cartItems.map((i) => (
+            <div key={i.product.id} className="flex justify-between text-sm"><span className="text-slate-700">{i.qty}× {i.product.name}</span><span className="font-mono text-slate-600">{fmt(i.product.price * i.qty)}</span></div>
+          ))}
+          <div className="flex justify-between text-sm font-semibold pt-2 border-t border-slate-100"><span>Sous-total</span><span className="font-mono text-emerald-700">{fmt(subtotal)}</span></div>
+        </div>
+        <Field label="Votre numéro de téléphone">
+          <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+225 ..." className={inputCls} required />
+        </Field>
+        <Field label="Votre nom (optionnel)">
+          <input value={customerName} onChange={(e) => setCustomerName(e.target.value)} className={inputCls} />
+        </Field>
+        {orderError && <p className="text-xs text-rose-600 mb-3">{orderError}</p>}
+        <button type="button" disabled={submitting} onClick={submitOrder} className="w-full rounded-full bg-emerald-600 text-white py-3 text-sm font-semibold hover:bg-emerald-500 disabled:opacity-60">{submitting ? "…" : "Valider la commande"}</button>
+      </Modal>
+
+      <p className="text-center text-[11px] text-slate-400 pb-6 pt-2">Propulsé par MarketPro</p>
+    </div>
+  );
+}
+
 export default function MarketProApp() {
+  const storeMatch = typeof window !== "undefined" ? window.location.pathname.match(/^\/store\/([^/]+)\/?$/) : null;
+  if (storeMatch) {
+    return <StorefrontPage username={decodeURIComponent(storeMatch[1])} />;
+  }
   return (
     <LangProvider>
       <AuthGate />
@@ -1630,7 +1861,7 @@ function AppShell({ navItems, activeKey, onNavigate, title, subtitle, headerActi
 
 function Workspace({ user, onLogout, onPay, accounts, messages, sendMessage }) {
   const { t, lang, setLang, daysAgoLabel } = useLang();
-  const NAV_ITEMS = useMerchantNav();
+  const NAV_ITEMS = useMerchantNav(user.isSuperAdmin);
   const seed = useMemo(() => getSeed(user.seed), []); // eslint-disable-line
   const isOnline = useOnlineStatus();
   const nsKey = (name) => `marketpro:${user.username}:${name}`;
@@ -1651,6 +1882,34 @@ function Workspace({ user, onLogout, onPay, accounts, messages, sendMessage }) {
   const [purchases, setPurchases] = usePersistentState(nsKey("purchases"), seed.purchases);
   const [expenses, setExpenses] = usePersistentState(nsKey("expenses"), seed.expenses);
   const [debts, setDebts] = usePersistentState(nsKey("debts"), seed.debts);
+  const [orders, setOrders] = usePersistentState(nsKey("orders"), seed.orders || []);
+
+  // Orders (and the stock they affect) can change from outside this session
+  // entirely — a customer places an order on the public storefront without
+  // ever opening this app. Poll for both while logged in, remote mode only.
+  useEffect(() => {
+    if (!isRemoteConfigured || !user.id) return;
+    let cancelled = false;
+    const load = () => {
+      api.orders().then((rows) => { if (!cancelled) setOrders(rows); }).catch(() => {});
+      api.list("products").then((rows) => { if (!cancelled) setProducts(rows); }).catch(() => {});
+    };
+    const interval = setInterval(load, 8000);
+    return () => { cancelled = true; clearInterval(interval); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user.id]);
+
+  const updateOrderStatus = (orderId, status) => {
+    setOrders((os) => os.map((o) => (o.id === orderId ? { ...o, status } : o)));
+    if (isRemoteConfigured) api.updateOrderStatus(orderId, status).catch(() => {});
+  };
+
+  const contactSupport = () => {
+    const admin = accounts.find((a) => a.isSuperAdmin);
+    if (!admin) return;
+    setMessagingTarget(accountKey(admin));
+    setView("messagerie");
+  };
 
   // When a real backend is configured, hydrate from it on mount and whenever
   // connectivity returns, then flush anything queued while offline. In local
@@ -1932,7 +2191,10 @@ function Workspace({ user, onLogout, onPay, accounts, messages, sendMessage }) {
       {view === "messagerie" && <MessagingView currentUsername={accountKey(user)} accounts={accounts} messages={messages} sendMessage={sendMessage} initialContact={messagingTarget} />}
       {view === "rapports" && <RapportsView bestSellers={bestSellers} revenueToday={revenueToday} profitToday={profitToday} expensesToday={expensesToday} categoryTotals={categoryTotals} categoryTotal={categoryTotal} />}
       {view === "abonnement" && <BillingView user={user} onPay={onPay} />}
-      {view === "parametres" && <ParametresView user={user} lang={lang} setLang={setLang} />}
+      {view === "commandes" && <OrdersView orders={orders} onUpdateStatus={updateOrderStatus} />}
+      {view === "boutiqueline" && <StorefrontLinkView user={user} />}
+      {view === "admin" && <AdminUsersView currentUserId={user.id} />}
+      {view === "parametres" && <ParametresView user={user} lang={lang} setLang={setLang} onContactSupport={contactSupport} />}
 
       <VoiceOverlay open={voiceOpen} onClose={() => setVoiceOpen(false)} onCommand={handleVoiceCommand} />
       <SaleModal open={modal === "sale"} onClose={() => setModal(null)} products={products} clients={clients} onSubmit={applySale} />
@@ -1956,7 +2218,7 @@ function Workspace({ user, onLogout, onPay, accounts, messages, sendMessage }) {
 
 function SupplierWorkspace({ user, onLogout, onPay, accounts, messages, sendMessage }) {
   const { t } = useLang();
-  const NAV_ITEMS = useSupplierNav();
+  const NAV_ITEMS = useSupplierNav(user.isSuperAdmin);
   const isOnline = useOnlineStatus();
   const [view, setView] = useState("annuaire");
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -1966,6 +2228,13 @@ function SupplierWorkspace({ user, onLogout, onPay, accounts, messages, sendMess
   const goTo = (key) => { setView(key); setSidebarOpen(false); setMoreOpen(false); };
   const goToMessaging = (username) => { setMessagingTarget(username); setView("messagerie"); };
   const pageTitle = NAV_ITEMS.find((n) => n.key === view)?.label || "";
+
+  const contactSupport = () => {
+    const admin = accounts.find((a) => a.isSuperAdmin);
+    if (!admin) return;
+    setMessagingTarget(accountKey(admin));
+    setView("messagerie");
+  };
 
   if (user.billing?.status === "expired") {
     return <SubscriptionLockedScreen user={user} onPay={onPay} onLogout={onLogout} />;
@@ -2001,12 +2270,13 @@ function SupplierWorkspace({ user, onLogout, onPay, accounts, messages, sendMess
       {view === "annuaire" && <DirectoryView accounts={accounts} onContact={goToMessaging} />}
       {view === "messagerie" && <MessagingView currentUsername={accountKey(user)} accounts={accounts} messages={messages} sendMessage={sendMessage} initialContact={messagingTarget} />}
       {view === "abonnement" && <BillingView user={user} onPay={onPay} />}
-      {view === "parametres" && <SupplierSettingsView user={user} />}
+      {view === "admin" && <AdminUsersView currentUserId={user.id} />}
+      {view === "parametres" && <SupplierSettingsView user={user} onContactSupport={contactSupport} />}
     </AppShell>
   );
 }
 
-function SupplierSettingsView({ user }) {
+function SupplierSettingsView({ user, onContactSupport }) {
   const { t, lang, setLang } = useLang();
   const langs = [{ code: "fr", label: "Français" }, { code: "en", label: "English" }, { code: "wo", label: "Wolof" }, { code: "bm", label: "Bambara" }, { code: "dy", label: "Dioula" }];
   return (
@@ -2032,6 +2302,11 @@ function SupplierSettingsView({ user }) {
         <h4 className="font-semibold text-sm text-slate-900 mb-1">{t("settings.account")}</h4>
         <p className="text-xs text-slate-500">{t("settings.loggedInAs")} <span className="font-medium text-slate-700">{user.username}</span></p>
       </div>
+      {isRemoteConfigured && onContactSupport && (
+        <button onClick={onContactSupport} className="w-full inline-flex items-center justify-center gap-2 rounded-full border border-slate-900/15 py-3 text-sm font-semibold text-slate-700 hover:border-slate-900/30">
+          <LifeBuoy size={16} /> {t("support.contactButton")}
+        </button>
+      )}
     </div>
   );
 }
@@ -2225,7 +2500,7 @@ function VentesView({ sales, onAdd, daysAgoLabel }) {
 /* =========================================================================
    STOCK IMPORT / EXPORT — plain CSV, no external library needed
 ========================================================================= */
-const STOCK_CSV_HEADERS = ["nom", "unité", "stock", "seuil", "prix", "catégorie"];
+const STOCK_CSV_HEADERS = ["nom", "unité", "stock", "seuil", "prix", "catégorie", "photo"];
 
 function parseCSV(text) {
   const rows = [];
@@ -2263,7 +2538,7 @@ function downloadCSV(filename, rows) {
 }
 
 function productsToCSVRows(products) {
-  return [STOCK_CSV_HEADERS, ...products.map((p) => [p.name, p.unit, p.stock, p.threshold, p.price, p.category])];
+  return [STOCK_CSV_HEADERS, ...products.map((p) => [p.name, p.unit, p.stock, p.threshold, p.price, p.category, p.photoUrl || ""])];
 }
 
 function csvTextToProducts(text) {
@@ -2277,6 +2552,7 @@ function csvTextToProducts(text) {
       threshold: Number(cols[3]) || 0,
       price: Number(cols[4]) || 0,
       category: (cols[5] || "Autre").trim(),
+      photoUrl: (cols[6] || "").trim() || null,
     }))
     .filter((p) => p.name);
 }
@@ -2345,6 +2621,15 @@ function ImportStockModal({ open, onClose, onImport }) {
   );
 }
 
+function ProductThumb({ src, size = "sm" }) {
+  const [failed, setFailed] = useState(false);
+  const cls = size === "lg" ? "h-12 w-12" : "h-9 w-9";
+  if (!src || failed) {
+    return <span className={`${cls} rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0`}><ImageOff size={14} className="text-slate-400" /></span>;
+  }
+  return <img src={src} alt="" onError={() => setFailed(true)} className={`${cls} rounded-lg object-cover flex-shrink-0 bg-slate-100`} />;
+}
+
 function StocksView({ products, onAdd, onImport }) {
   const { t } = useLang();
   const [importOpen, setImportOpen] = useState(false);
@@ -2366,13 +2651,14 @@ function StocksView({ products, onAdd, onImport }) {
       />
       <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-900/10 bg-white">
         <table className="w-full text-sm">
-          <thead><tr className="text-left text-xs text-slate-500 border-b border-slate-900/10"><th className="px-5 py-3.5 font-medium">{t("stocks.product")}</th><th className="px-5 py-3.5 font-medium">{t("stocks.category")}</th><th className="px-5 py-3.5 font-medium">{t("stocks.stock")}</th><th className="px-5 py-3.5 font-medium">{t("stocks.unitPrice")}</th><th className="px-5 py-3.5 font-medium">{t("stocks.status")}</th></tr></thead>
+          <thead><tr className="text-left text-xs text-slate-500 border-b border-slate-900/10"><th className="px-5 py-3.5 font-medium">{t("stocks.photo")}</th><th className="px-5 py-3.5 font-medium">{t("stocks.product")}</th><th className="px-5 py-3.5 font-medium">{t("stocks.category")}</th><th className="px-5 py-3.5 font-medium">{t("stocks.stock")}</th><th className="px-5 py-3.5 font-medium">{t("stocks.unitPrice")}</th><th className="px-5 py-3.5 font-medium">{t("stocks.status")}</th></tr></thead>
           <tbody>
             {products.map((p) => {
               const low = p.stock <= p.threshold;
               const pct = Math.min(100, Math.round((p.stock / (p.threshold * 3)) * 100));
               return (
                 <tr key={p.id} className="border-b border-slate-50 last:border-0">
+                  <td className="px-5 py-3.5"><ProductThumb src={p.photoUrl} /></td>
                   <td className="px-5 py-3.5 font-medium text-slate-800">{p.name}</td>
                   <td className="px-5 py-3.5 text-slate-600">{p.category}</td>
                   <td className="px-5 py-3.5 text-slate-600 w-40"><div className="flex items-center gap-2"><div className="w-24 h-1.5 rounded-full bg-slate-100 overflow-hidden"><div className={`h-full rounded-full ${low ? "bg-amber-500" : "bg-emerald-600"}`} style={{ width: `${pct}%` }} /></div><span className="text-xs">{p.stock} {p.unit}</span></div></td>
@@ -2386,9 +2672,12 @@ function StocksView({ products, onAdd, onImport }) {
       </div>
       <div className="md:hidden space-y-3">
         {products.map((p) => { const low = p.stock <= p.threshold; return (
-          <div key={p.id} className="rounded-2xl border border-slate-900/10 bg-white p-4">
-            <div className="flex justify-between items-start mb-1.5"><span className="font-semibold text-sm text-slate-900">{p.name}</span>{low ? <Badge tone="amber">{t("common.lowStock")}</Badge> : <Badge tone="green">{t("common.ok")}</Badge>}</div>
-            <div className="text-xs text-slate-500">{p.category} · {p.stock} {p.unit} · {fmt(p.price)}</div>
+          <div key={p.id} className="rounded-2xl border border-slate-900/10 bg-white p-4 flex items-center gap-3">
+            <ProductThumb src={p.photoUrl} size="lg" />
+            <div className="flex-1 min-w-0">
+              <div className="flex justify-between items-start mb-1.5"><span className="font-semibold text-sm text-slate-900 truncate">{p.name}</span>{low ? <Badge tone="amber">{t("common.lowStock")}</Badge> : <Badge tone="green">{t("common.ok")}</Badge>}</div>
+              <div className="text-xs text-slate-500">{p.category} · {p.stock} {p.unit} · {fmt(p.price)}</div>
+            </div>
           </div>
         ); })}
       </div>
@@ -2655,7 +2944,190 @@ function RapportsView({ bestSellers, revenueToday, profitToday, expensesToday, c
   );
 }
 
-function ParametresView({ user, lang, setLang }) {
+function RequiresBackendNotice({ text }) {
+  return (
+    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center">
+      <ShieldAlert size={22} className="text-amber-600 mx-auto mb-2" />
+      <p className="text-sm text-amber-800">{text}</p>
+    </div>
+  );
+}
+
+function OrdersView({ orders, onUpdateStatus }) {
+  const { t } = useLang();
+  const statusBadge = (s) => (s === "traitee" ? <Badge tone="green">{t("orders.statusDone")}</Badge> : s === "annulee" ? <Badge tone="red">{t("orders.statusCancelled")}</Badge> : <Badge tone="amber">{t("orders.statusNew")}</Badge>);
+
+  if (!isRemoteConfigured) return <RequiresBackendNotice text={t("store.requiresBackend")} />;
+
+  return (
+    <div>
+      <PageHeader title={t("orders.title")} subtitle={t("orders.subtitleCount", orders.length)} />
+      <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-900/10 bg-white">
+        <table className="w-full text-sm">
+          <thead><tr className="text-left text-xs text-slate-500 border-b border-slate-900/10"><th className="px-5 py-3.5 font-medium">{t("orders.customer")}</th><th className="px-5 py-3.5 font-medium">{t("orders.phone")}</th><th className="px-5 py-3.5 font-medium">{t("orders.items")}</th><th className="px-5 py-3.5 font-medium">{t("orders.total")}</th><th className="px-5 py-3.5 font-medium">{t("orders.status")}</th><th className="px-5 py-3.5 font-medium"></th></tr></thead>
+          <tbody>
+            {orders.map((o) => (
+              <tr key={o.id} className="border-b border-slate-50 last:border-0">
+                <td className="px-5 py-3.5 font-medium text-slate-800">{o.customerName || "—"}</td>
+                <td className="px-5 py-3.5 text-slate-600">{o.customerPhone}</td>
+                <td className="px-5 py-3.5 text-slate-600">{o.items.map((it) => `${it.qty}× ${it.productName}`).join(", ")}</td>
+                <td className="px-5 py-3.5 font-mono text-emerald-700">{fmt(o.total)}</td>
+                <td className="px-5 py-3.5">{statusBadge(o.status)}</td>
+                <td className="px-5 py-3.5">
+                  {o.status === "nouvelle" && (
+                    <div className="flex items-center gap-3">
+                      <button onClick={() => onUpdateStatus(o.id, "traitee")} className="text-xs font-semibold text-emerald-700 hover:text-emerald-800">{t("orders.markDone")}</button>
+                      <button onClick={() => onUpdateStatus(o.id, "annulee")} className="text-xs font-semibold text-slate-500 hover:text-slate-700">{t("orders.markCancelled")}</button>
+                    </div>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="md:hidden space-y-3">
+        {orders.map((o) => (
+          <div key={o.id} className="rounded-2xl border border-slate-900/10 bg-white p-4">
+            <div className="flex justify-between items-start mb-1.5"><span className="font-semibold text-sm text-slate-900">{o.customerName || o.customerPhone}</span><span className="font-mono text-sm text-emerald-700">{fmt(o.total)}</span></div>
+            <div className="text-xs text-slate-500 mb-2">{o.items.map((it) => `${it.qty}× ${it.productName}`).join(", ")}</div>
+            <div className="flex items-center justify-between">
+              {statusBadge(o.status)}
+              {o.status === "nouvelle" && (
+                <div className="flex items-center gap-3">
+                  <button onClick={() => onUpdateStatus(o.id, "traitee")} className="text-xs font-semibold text-emerald-700">{t("orders.markDone")}</button>
+                  <button onClick={() => onUpdateStatus(o.id, "annulee")} className="text-xs font-semibold text-slate-500">{t("orders.markCancelled")}</button>
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+      {!orders.length && <EmptyState text={t("orders.empty")} />}
+    </div>
+  );
+}
+
+function StorefrontLinkView({ user }) {
+  const { t } = useLang();
+  const [copied, setCopied] = useState(false);
+  if (!isRemoteConfigured) return <RequiresBackendNotice text={t("store.requiresBackend")} />;
+
+  const link = `${window.location.origin}/store/${encodeURIComponent(user.username)}`;
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(link); setCopied(true); setTimeout(() => setCopied(false), 2500); } catch (e) { /* clipboard unavailable */ }
+  };
+
+  return (
+    <div className="max-w-2xl space-y-6">
+      <PageHeader title={t("nav.boutiqueLigne")} subtitle={t("store.navSubtitle")} />
+      <div className="rounded-2xl border border-slate-900/10 bg-white p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <span className="h-11 w-11 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0"><ShoppingBag size={20} className="text-emerald-700" /></span>
+          <div>
+            <div className="font-semibold text-sm text-slate-900">{user.boutique}</div>
+            <div className="text-xs text-slate-500">{t("store.yourLink")}</div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 rounded-xl border border-slate-900/15 px-4 py-3 mb-4">
+          <Link2 size={15} className="text-slate-400 flex-shrink-0" />
+          <input readOnly value={link} className="flex-1 min-w-0 bg-transparent text-sm text-slate-700 outline-none" onFocus={(e) => e.target.select()} />
+        </div>
+        <div className="flex gap-3">
+          <button onClick={copy} className="flex-1 inline-flex items-center justify-center gap-2 rounded-full bg-emerald-600 text-white py-3 text-sm font-semibold hover:bg-emerald-500">
+            <Send size={15} /> {copied ? t("store.linkCopied") : t("store.copyLink")}
+          </button>
+          <a href={link} target="_blank" rel="noopener noreferrer" className="flex-1 inline-flex items-center justify-center gap-2 rounded-full border border-slate-900/15 py-3 text-sm font-semibold text-slate-700 hover:border-slate-900/30">
+            <ShoppingBag size={15} /> {t("store.openStore")}
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AdminUsersView({ currentUserId }) {
+  const { t } = useLang();
+  const [users, setUsers] = useState(null);
+  const [error, setError] = useState("");
+  const [tempPassword, setTempPassword] = useState(null);
+
+  const load = () => { api.adminUsers().then(setUsers).catch((e) => setError(e.message)); };
+  useEffect(() => { if (isRemoteConfigured) load(); }, []); // eslint-disable-line
+
+  if (!isRemoteConfigured) return <RequiresBackendNotice text={t("store.requiresBackend")} />;
+
+  const handleDelete = async (u) => {
+    if (!window.confirm(t("admin.confirmDelete", u.boutique || u.company || u.username))) return;
+    try { await api.adminDeleteUser(u.id); load(); } catch (e) { setError(e.message); }
+  };
+  const handleReset = async (u) => {
+    if (!window.confirm(t("admin.confirmReset", u.boutique || u.company || u.username))) return;
+    try { const res = await api.adminResetPassword(u.id); setTempPassword({ user: u, password: res.temporaryPassword }); } catch (e) { setError(e.message); }
+  };
+
+  return (
+    <div>
+      <PageHeader title={t("admin.title")} subtitle={users ? t("admin.usersCount", users.length) : t("admin.subtitle")} />
+      {error && <p className="text-sm text-rose-600 mb-4">{error}</p>}
+      {!users ? (
+        <div className="flex justify-center py-14"><div className="h-8 w-8 rounded-full border-2 border-emerald-600 border-t-transparent animate-spin" /></div>
+      ) : (
+        <>
+          <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-900/10 bg-white">
+            <table className="w-full text-sm">
+              <thead><tr className="text-left text-xs text-slate-500 border-b border-slate-900/10"><th className="px-5 py-3.5 font-medium">{t("admin.username")}</th><th className="px-5 py-3.5 font-medium">{t("admin.type")}</th><th className="px-5 py-3.5 font-medium">{t("admin.shop")}</th><th className="px-5 py-3.5 font-medium">{t("admin.city")}</th><th className="px-5 py-3.5 font-medium">{t("admin.status")}</th><th className="px-5 py-3.5 font-medium"></th></tr></thead>
+              <tbody>
+                {users.map((u) => (
+                  <tr key={u.id} className="border-b border-slate-50 last:border-0">
+                    <td className="px-5 py-3.5 font-medium text-slate-800">{u.username} {u.id === currentUserId && <Badge tone="blue">{t("admin.youBadge")}</Badge>} {u.isSuperAdmin && <Badge tone="green">{t("admin.adminBadge")}</Badge>}</td>
+                    <td className="px-5 py-3.5 text-slate-600">{u.role === "merchant" ? t("login.merchantOption") : t("login.supplierOption")}</td>
+                    <td className="px-5 py-3.5 text-slate-600">{u.boutique || u.company || "—"}</td>
+                    <td className="px-5 py-3.5 text-slate-600">{u.city || "—"}</td>
+                    <td className="px-5 py-3.5">{u.billing?.status === "active" ? <Badge tone="green">Premium</Badge> : u.billing?.status === "trial" ? <Badge tone="amber">Essai</Badge> : <Badge tone="red">Expiré</Badge>}</td>
+                    <td className="px-5 py-3.5">
+                      {u.id !== currentUserId && (
+                        <div className="flex items-center gap-3">
+                          <button onClick={() => handleReset(u)} title={t("admin.resetPassword")} className="text-slate-500 hover:text-emerald-700"><KeyRound size={15} /></button>
+                          <button onClick={() => handleDelete(u)} title={t("admin.deleteUser")} className="text-slate-500 hover:text-rose-600"><Trash2 size={15} /></button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="md:hidden space-y-3">
+            {users.map((u) => (
+              <div key={u.id} className="rounded-2xl border border-slate-900/10 bg-white p-4">
+                <div className="flex justify-between items-start mb-1.5">
+                  <span className="font-semibold text-sm text-slate-900">{u.username}</span>
+                  <div className="flex gap-1.5">{u.id === currentUserId && <Badge tone="blue">{t("admin.youBadge")}</Badge>}{u.isSuperAdmin && <Badge tone="green">{t("admin.adminBadge")}</Badge>}</div>
+                </div>
+                <div className="text-xs text-slate-500 mb-3">{u.boutique || u.company || "—"} · {u.city || "—"}</div>
+                {u.id !== currentUserId && (
+                  <div className="flex gap-4">
+                    <button onClick={() => handleReset(u)} className="text-xs font-semibold text-emerald-700 flex items-center gap-1"><KeyRound size={13} /> {t("admin.resetPassword")}</button>
+                    <button onClick={() => handleDelete(u)} className="text-xs font-semibold text-rose-600 flex items-center gap-1"><Trash2 size={13} /> {t("admin.deleteUser")}</button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      <Modal open={!!tempPassword} onClose={() => setTempPassword(null)} title={t("admin.newPasswordTitle")}>
+        <p className="text-xs text-slate-500 mb-4">{t("admin.newPasswordHint")}</p>
+        <div className="rounded-xl bg-slate-50 border border-slate-900/10 px-4 py-3.5 text-center font-mono text-lg font-bold text-slate-900 mb-5">{tempPassword?.password}</div>
+        <button onClick={() => setTempPassword(null)} className="w-full rounded-full bg-emerald-600 text-white py-3 text-sm font-semibold hover:bg-emerald-500">{t("common.close")}</button>
+      </Modal>
+    </div>
+  );
+}
+
+function ParametresView({ user, lang, setLang, onContactSupport }) {
   const { t } = useLang();
   const langs = [{ code: "fr", label: "Français" }, { code: "en", label: "English" }, { code: "wo", label: "Wolof" }, { code: "bm", label: "Bambara" }, { code: "dy", label: "Dioula" }];
   return (
@@ -2677,6 +3149,11 @@ function ParametresView({ user, lang, setLang }) {
         <h4 className="font-semibold text-sm text-slate-900 mb-1">{t("settings.account")}</h4>
         <p className="text-xs text-slate-500">{t("settings.loggedInAs")} <span className="font-medium text-slate-700">{user.username}</span></p>
       </div>
+      {isRemoteConfigured && onContactSupport && (
+        <button onClick={onContactSupport} className="w-full inline-flex items-center justify-center gap-2 rounded-full border border-slate-900/15 py-3 text-sm font-semibold text-slate-700 hover:border-slate-900/30">
+          <LifeBuoy size={16} /> {t("support.contactButton")}
+        </button>
+      )}
     </div>
   );
 }
@@ -2794,9 +3271,9 @@ function PurchaseModal({ open, onClose, products, suppliers, onSubmit }) {
 
 function ProductModal({ open, onClose, onSubmit }) {
   const { t } = useLang();
-  const [name, setName] = useState(""); const [unit, setUnit] = useState("unités"); const [stock, setStock] = useState(0); const [threshold, setThreshold] = useState(5); const [price, setPrice] = useState(""); const [category, setCategory] = useState("Alimentation");
-  useEffect(() => { if (open) { setName(""); setUnit("unités"); setStock(0); setThreshold(5); setPrice(""); setCategory("Alimentation"); } }, [open]);
-  const handleSave = () => { onSubmit({ name, unit, stock: Number(stock), threshold: Number(threshold), price: Number(price), category }); onClose(); };
+  const [name, setName] = useState(""); const [unit, setUnit] = useState("unités"); const [stock, setStock] = useState(0); const [threshold, setThreshold] = useState(5); const [price, setPrice] = useState(""); const [category, setCategory] = useState("Alimentation"); const [photoUrl, setPhotoUrl] = useState("");
+  useEffect(() => { if (open) { setName(""); setUnit("unités"); setStock(0); setThreshold(5); setPrice(""); setCategory("Alimentation"); setPhotoUrl(""); } }, [open]);
+  const handleSave = () => { onSubmit({ name, unit, stock: Number(stock), threshold: Number(threshold), price: Number(price), category, photoUrl: photoUrl.trim() || null }); onClose(); };
   return (
     <Modal open={open} onClose={onClose} title={t("common.addProduct")}>
       <div onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}>
@@ -2804,6 +3281,15 @@ function ProductModal({ open, onClose, onSubmit }) {
         <div className="grid grid-cols-2 gap-3"><Field label="Unité"><input value={unit} onChange={(e) => setUnit(e.target.value)} className={inputCls} /></Field><Field label={t("stocks.stock")}><input type="number" min="0" value={stock} onChange={(e) => setStock(e.target.value)} className={inputCls} /></Field></div>
         <div className="grid grid-cols-2 gap-3"><Field label="Seuil d'alerte"><input type="number" min="0" value={threshold} onChange={(e) => setThreshold(e.target.value)} className={inputCls} /></Field><Field label={t("stocks.unitPrice")}><input type="number" min="0" value={price} onChange={(e) => setPrice(e.target.value)} className={inputCls} required /></Field></div>
         <Field label={t("stocks.category")}><select value={category} onChange={(e) => setCategory(e.target.value)} className={inputCls}><option>Alimentation</option><option>Boissons</option><option>Hygiène</option><option>Autre</option></select></Field>
+        <Field label={t("stocks.photoUrlLabel")}>
+          <div className="flex items-center gap-3">
+            <input value={photoUrl} onChange={(e) => setPhotoUrl(e.target.value)} placeholder="https://..." className={inputCls} />
+            <span className="h-11 w-11 rounded-lg overflow-hidden flex-shrink-0 bg-slate-100 flex items-center justify-center">
+              {photoUrl ? <img src={photoUrl} alt="" className="h-full w-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} /> : <ImageOff size={16} className="text-slate-400" />}
+            </span>
+          </div>
+          <span className="block text-[11px] text-slate-400 mt-1.5">{t("stocks.photoUrlHint")}</span>
+        </Field>
         <button type="button" onClick={handleSave} className="w-full rounded-full bg-emerald-600 text-white py-3 text-sm font-semibold mt-2 hover:bg-emerald-500">{t("common.save")}</button>
       </div>
     </Modal>
