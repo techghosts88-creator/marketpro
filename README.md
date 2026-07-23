@@ -193,6 +193,7 @@ Le frontend restant une simple application statique, `vercel.json` et `netlify.t
 | `npm run db:migrate`    | Applique les migrations Prisma existantes (production/CI) |
 | `npm run db:migrate:dev`| Crée une nouvelle migration versionnée (développement)   |
 | `npm run db:studio`     | Ouvre [Prisma Studio](https://www.prisma.io/studio) pour parcourir les données |
+| `npm run seed:admin`    | Crée le compte super admin, ou réinitialise son mot de passe s'il existe déjà |
 
 ---
 
@@ -264,9 +265,23 @@ marketpro-app/
 
 ## Devenir super admin
 
-1. Sur le backend déployé (ou en local), définissez `SUPER_ADMIN_USERNAME` avec l'identifiant que vous comptez utiliser (ex. `SUPER_ADMIN_USERNAME=djakarya`).
+### Option recommandée — via le script de seed
+
+1. Définissez `SUPER_ADMIN_USERNAME` (et si vous voulez, `SUPER_ADMIN_PASSWORD`) dans les variables d'environnement du backend.
+2. Lancez, depuis le Shell Render du service backend (ou en local) :
+   ```bash
+   npm run seed:admin
+   ```
+3. Ce script **crée le compte s'il n'existe pas**, ou **réinitialise son mot de passe** s'il existe déjà — dans les deux cas, vous repartez avec un identifiant/mot de passe qui fonctionne à coup sûr. Si vous n'avez pas défini `SUPER_ADMIN_PASSWORD`, un mot de passe aléatoire est généré et affiché une seule fois dans la sortie de la commande — notez-le tout de suite.
+4. Connectez-vous avec cet identifiant/mot de passe : l'onglet **Administration** apparaît automatiquement.
+
+C'est la méthode à utiliser si la connexion échoue avec « mot de passe incorrect » — plutôt que de supprimer/recréer manuellement la ligne dans Supabase, ce script s'en charge proprement en une commande.
+
+### Option manuelle — via l'inscription normale
+
+1. Définissez `SUPER_ADMIN_USERNAME` avec l'identifiant que vous comptez utiliser (ex. `SUPER_ADMIN_USERNAME=djakarya`).
 2. Créez un compte normal (commerçant ou fournisseur, peu importe) avec exactement cet identifiant depuis l'écran « Créer un compte ».
-3. À la connexion, ce compte reçoit automatiquement le statut super admin — un onglet « Administration » apparaît dans son menu, permettant de lister tous les utilisateurs, réinitialiser un mot de passe, ou supprimer un compte (sauf le vôtre).
+3. À la connexion, ce compte reçoit automatiquement le statut super admin.
 
 Vous pouvez aussi promouvoir un compte existant : changez `SUPER_ADMIN_USERNAME` pour correspondre à son identifiant, puis reconnectez ce compte (ou rechargez la page si la session est déjà active).
 
